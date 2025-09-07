@@ -56,7 +56,7 @@ USER_COOKIES = {
         "wm_ac": os.environ.get("U1_WM_AC", ""),
         "wm_dm": os.environ.get("U1_WM_DM", "")
     },
-    "ともだちA": {
+    "えす": {
         "dam-uid": os.environ.get("U2_DAM_UID", ""),
         "scr_cdm": os.environ.get("U2_SCR_CDM", ""),
         "scr_dt":  os.environ.get("U2_SCR_DT",  ""),
@@ -64,7 +64,7 @@ USER_COOKIES = {
         "wm_ac": os.environ.get("U2_WM_AC", ""),
         "wm_dm": os.environ.get("U2_WM_DM", "")
     },
-    "ともだちB": {
+    "こんけあ": {
         "dam-uid": os.environ.get("U3_DAM_UID", ""),
         "scr_cdm": os.environ.get("U3_SCR_CDM", ""),
         "scr_dt":  os.environ.get("U3_SCR_DT",  ""),
