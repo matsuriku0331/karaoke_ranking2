@@ -1,7 +1,17 @@
 {% extends "base.html" %}
 {% block title %}曲別ランキング | 根性カラオキランキング{% endblock %}
 
-{# ヘッダの更新ボタンに検索条件を引き継ぐ hidden を差し込む #}
+{% block head %}
+  <style>
+    /* 日付列をやや広げ、モバイルでは横スクロール可能にする */
+    .table-wrap{overflow-x:auto}
+    .col-date{min-width: 140px;} /* ここを広げる：必要なら 160px までOK */
+    @media (max-width:720px){
+      .col-date{min-width: 160px;}
+    }
+  </style>
+{% endblock %}
+
 {% block update_hidden %}
   <input type="hidden" name="song" value="{{ song_query }}">
   <input type="hidden" name="singer" value="{{ singer_query }}">
@@ -10,6 +20,19 @@
 
 {% block content %}
   <div class="h1">曲別ランキング</div>
+
+  {# ②：ユーザー平均点の表示（最高点平均でなく全データ平均） #}
+  {% if user_averages %}
+    <div class="card" style="margin-bottom:16px">
+      <div class="row" style="gap:12px; flex-wrap:wrap">
+        {% for uname, avg in user_averages.items() %}
+          <div class="chip" style="background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.35); color:#86efac;">
+            {{ uname }} の平均：{{ '%.2f'|format(avg) }}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
 
   <!-- 検索フォーム -->
   <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
@@ -49,34 +72,37 @@
           <div class="muted" style="font-size:12px">Top 3</div>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th style="width:60px">順位</th>
-              <th style="min-width:140px">ユーザー</th>
-              <th style="min-width:100px">スコア</th>
-              <th>日付</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for record in records %}
+        <div class="table-wrap">
+          <table>
+            <thead>
               <tr>
-                <td class="rank">
-                  {% if loop.index == 1 %}<span class="medal-1">🥇 1位</span>
-                  {% elif loop.index == 2 %}<span class="medal-2">🥈 2位</span>
-                  {% else %}<span class="medal-3">🥉 3位</span>{% endif %}
-                </td>
-                <td>{{ record["ユーザー"] }}</td>
-                <td>{{ '%.2f'|format(record["スコア"]) }}</td>
-                <td>
-                  {# pandas→datetimeのまま渡ってくるのでそのまま表示。必要なら↓のように整形 #}
-                  {{ record["日付"] }}
-                  {# 例: {{ record["日付"].strftime('%Y-%m-%d %H:%M') if record["日付"] }} #}
-                </td>
+                <th style="width:60px">順位</th>
+                <th style="min-width:140px">ユーザー</th>
+                <th style="min-width:100px">スコア</th>
+                <th class="col-date">日付</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for record in records %}
+                <tr>
+                  <td class="rank">
+                    {% if loop.index == 1 %}<span class="medal-1">🥇 1位</span>
+                    {% elif loop.index == 2 %}<span class="medal-2">🥈 2位</span>
+                    {% else %}<span class="medal-3">🥉 3位</span>{% endif %}
+                  </td>
+                  <td>{{ record["ユーザー"] }}</td>
+                  <td>{{ '%.2f'|format(record["スコア"]) }}</td>
+                  <td>
+                    {# ①：日付は YYYY-MM-DD のみ表示（DBには時間も保持） #}
+                    {% if record["日付"] %}
+                      {{ record["日付"].strftime('%Y-%m-%d') }}
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     {% endfor %}
   {% else %}
