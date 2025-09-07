@@ -18,7 +18,6 @@ else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///scores.db"
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 db = SQLAlchemy(app)
 
 # ---- DB model ----
@@ -178,18 +177,30 @@ def home():
 
 @app.route("/ranking", methods=["GET"])
 def ranking():
-    # 検索・ソートパラメータ
+    # 検索パラメータ
     song_query = request.args.get("song", "")
     singer_query = request.args.get("singer", "")
-    sort_order = request.args.get("sort", "asc")
+    # あいうえお順は廃止（ご要望）→ sort_order は無視
 
     # DB から読み出し
     df_all = df_from_db()
 
-    # 平均点（②：全件からユーザー毎平均。最高点の平均ではない）
+    # ② 平均点（全レコードからユーザー毎平均）
     user_averages = {}
+    # ②’ 1位取得数
+    first_place_counts = {}
+    # ③’ 個人ごとの合計曲数（ユニーク）
+    user_unique_song_counts = {}
+    # ③’’ 全体の合計曲数（ユニーク）
+    total_unique_songs = 0
+
     if not df_all.empty:
+        # ユーザー平均
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
+        # 個人ユニーク曲数
+        user_unique_song_counts = df_all.groupby("ユーザー")["曲名"].nunique().to_dict()
+        # 全体ユニーク曲数
+        total_unique_songs = int(df_all["曲名"].nunique())
 
     # フィルタリング（部分一致）
     if song_query:
@@ -197,39 +208,48 @@ def ranking():
     if singer_query:
         df_all = df_all[df_all["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
 
-    # 曲名でソート（単純ソート。雰囲気保持のため詳細なコラテーションは未変更）
-    df_all = df_all.sort_values("曲名", ascending=(sort_order == "asc")) if not df_all.empty else df_all
-
-    # ③：曲×ユーザーで「最高点の “達成時” の行」を抽出
-    # スコア降順・日付昇順（同点なら最初に達成した日）で並べ、グループ先頭を採用
+    # ③：曲×ユーザーで「最高点の“達成時”の行」を抽出（同点なら最初に達成した日）
     best_rows = pd.DataFrame(columns=["曲名", "ユーザー", "歌手名", "スコア", "日付"])
     if not df_all.empty:
         ordered = df_all.sort_values(["スコア", "日付"], ascending=[False, True])
-        # first() で各 (曲名, ユーザー) の最上位行を選ぶ
         best_rows = (
             ordered.groupby(["曲名", "ユーザー"], as_index=False)
                    .first()[["曲名", "ユーザー", "歌手名", "スコア", "日付"]]
         )
 
-    # 曲ごとに Top3（ユーザー被りなしは best_rows の時点で満たされている）
-    ranking_data = {}
+    # ①：曲ごとにTop3を作りつつ「曲の並び」を1位スコア高い順に
+    ranking_list = []  # [{song, top_score, records(list)}]
     if not best_rows.empty:
         for song, group in best_rows.groupby("曲名"):
-            ranking_data[song] = group.sort_values("スコア", ascending=False).head(3).to_dict(orient="records")
+            # その曲の「ユーザー別最高」をスコア降順・日付昇順で並び替え→Top3
+            g_sorted = group.sort_values(["スコア", "日付"], ascending=[False, True])
+            top3 = g_sorted.head(3).to_dict(orient="records")
+            top_score = float(g_sorted.iloc[0]["スコア"])
+            ranking_list.append({"song": song, "top_score": top_score, "records": top3, "singer": g_sorted.iloc[0]["歌手名"]})
 
-    return render_template("ranking.html",
-                           ranking_data=ranking_data,
-                           user_averages=user_averages,
-                           song_query=song_query,
-                           singer_query=singer_query,
-                           sort_order=sort_order)
+            # ②：1位取得者カウント（同点時は“最初に達成した人”を1名採用）
+            winner = g_sorted.iloc[0]["ユーザー"]
+            first_place_counts[winner] = first_place_counts.get(winner, 0) + 1
+
+        # 曲の並び順：1位スコアの降順
+        ranking_list.sort(key=lambda x: x["top_score"], reverse=True)
+
+    return render_template(
+        "ranking.html",
+        ranking_list=ranking_list,          # ← dictではなく順序付きリストを渡す
+        user_averages=user_averages,
+        first_place_counts=first_place_counts,
+        user_unique_song_counts=user_unique_song_counts,
+        total_unique_songs=total_unique_songs,
+        song_query=song_query,
+        singer_query=singer_query,
+    )
 
 @app.route("/update_ranking", methods=["POST"])
 def update_ranking():
     # 検索条件保持（フォームの hidden から）
     song_query = request.form.get("song", "")
     singer_query = request.form.get("singer", "")
-    sort_order = request.form.get("sort", "asc")
 
     total_inserted = 0
     for user, cookies in USER_COOKIES.items():
@@ -241,18 +261,23 @@ def update_ranking():
             total_inserted += inserted
             print(f"[update] {user}: inserted {inserted} rows")
 
-    # 更新後ランキング作成も ranking() と同様の手順
+    # 更新後も ranking() と同じ処理で再描画
     df_all = df_from_db()
 
     user_averages = {}
+    first_place_counts = {}
+    user_unique_song_counts = {}
+    total_unique_songs = 0
+
     if not df_all.empty:
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
+        user_unique_song_counts = df_all.groupby("ユーザー")["曲名"].nunique().to_dict()
+        total_unique_songs = int(df_all["曲名"].nunique())
 
     if song_query:
         df_all = df_all[df_all["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
     if singer_query:
         df_all = df_all[df_all["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
-    df_all = df_all.sort_values("曲名", ascending=(sort_order == "asc")) if not df_all.empty else df_all
 
     best_rows = pd.DataFrame(columns=["曲名", "ユーザー", "歌手名", "スコア", "日付"])
     if not df_all.empty:
@@ -262,17 +287,29 @@ def update_ranking():
                    .first()[["曲名", "ユーザー", "歌手名", "スコア", "日付"]]
         )
 
-    ranking_data = {}
+    ranking_list = []
     if not best_rows.empty:
         for song, group in best_rows.groupby("曲名"):
-            ranking_data[song] = group.sort_values("スコア", ascending=False).head(3).to_dict(orient="records")
+            g_sorted = group.sort_values(["スコア", "日付"], ascending=[False, True])
+            top3 = g_sorted.head(3).to_dict(orient="records")
+            top_score = float(g_sorted.iloc[0]["スコア"])
+            ranking_list.append({"song": song, "top_score": top_score, "records": top3, "singer": g_sorted.iloc[0]["歌手名"]})
 
-    return render_template("ranking.html",
-                           ranking_data=ranking_data,
-                           user_averages=user_averages,
-                           song_query=song_query,
-                           singer_query=singer_query,
-                           sort_order=sort_order)
+            winner = g_sorted.iloc[0]["ユーザー"]
+            first_place_counts[winner] = first_place_counts.get(winner, 0) + 1
+
+        ranking_list.sort(key=lambda x: x["top_score"], reverse=True)
+
+    return render_template(
+        "ranking.html",
+        ranking_list=ranking_list,
+        user_averages=user_averages,
+        first_place_counts=first_place_counts,
+        user_unique_song_counts=user_unique_song_counts,
+        total_unique_songs=total_unique_songs,
+        song_query=song_query,
+        singer_query=singer_query,
+    )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

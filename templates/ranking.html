@@ -3,11 +3,21 @@
 
 {% block head %}
   <style>
-    /* 日付列をやや広げ、モバイルでは横スクロール可能にする */
     .table-wrap{overflow-x:auto}
-    .col-date{min-width: 140px;} /* ここを広げる：必要なら 160px までOK */
-    @media (max-width:720px){
-      .col-date{min-width: 160px;}
+    .col-date{min-width: 140px;}
+    @media (max-width:720px){ .col-date{min-width: 160px;} }
+
+    /* 個人サマリの3項目をきれいに並べる */
+    .stats-row{display:flex; gap:12px; flex-wrap:wrap}
+    .stat-chip{
+      padding:6px 10px; border-radius:999px; font-size:12px;
+      background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.35); color:#86efac;
+    }
+    .stat-chip.gray{
+      background:rgba(148,163,184,.08); border-color:rgba(148,163,184,.3); color:#cbd5e1;
+    }
+    .stat-chip.cyan{
+      background:rgba(6,182,212,.10); border-color:rgba(6,182,212,.35); color:#67e8f9;
     }
   </style>
 {% endblock %}
@@ -15,21 +25,27 @@
 {% block update_hidden %}
   <input type="hidden" name="song" value="{{ song_query }}">
   <input type="hidden" name="singer" value="{{ singer_query }}">
-  <input type="hidden" name="sort" value="{{ sort_order }}">
 {% endblock %}
 
 {% block content %}
   <div class="h1">曲別ランキング</div>
 
-  {# ②：ユーザー平均点の表示（最高点平均でなく全データ平均） #}
-  {% if user_averages %}
+  {# 人ごとの統計（平均・1位取得数・合計曲数） + 全体ユニーク曲数 #}
+  {% if user_averages or first_place_counts or user_unique_song_counts %}
     <div class="card" style="margin-bottom:16px">
-      <div class="row" style="gap:12px; flex-wrap:wrap">
-        {% for uname, avg in user_averages.items() %}
-          <div class="chip" style="background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.35); color:#86efac;">
-            {{ uname }} の平均：{{ '%.2f'|format(avg) }}
+      <div class="stats-row">
+        {% set users = (user_averages.keys() | list) %}
+        {% for uname in users %}
+          <div class="chip" style="background:rgba(14,165,233,.15); border-color:rgba(14,165,233,.35); color:#7dd3fc;">
+            {{ uname }}
           </div>
+          <span class="stat-chip">平均：{{ '%.2f'|format(user_averages.get(uname, 0)) }}</span>
+          <span class="stat-chip cyan">1位取得：{{ first_place_counts.get(uname, 0) }}</span>
+          <span class="stat-chip gray">合計曲数：{{ user_unique_song_counts.get(uname, 0) }}</span>
         {% endfor %}
+        {% if total_unique_songs %}
+          <span class="stat-chip" style="margin-left:auto">全体ユニーク曲：{{ total_unique_songs }}</span>
+        {% endif %}
       </div>
     </div>
   {% endif %}
@@ -46,11 +62,8 @@
         <input type="text" id="singer" name="singer" placeholder="例：三浦たくま" value="{{ singer_query }}">
       </div>
       <div>
-        <label for="sort">並び替え（あいうえお）</label>
-        <select name="sort" id="sort">
-          <option value="asc"  {% if sort_order=='asc' %}selected{% endif %}>昇順</option>
-          <option value="desc" {% if sort_order=='desc' %}selected{% endif %}>降順</option>
-        </select>
+        <label>並び替え</label>
+        <input type="text" value="1位スコアの降順" readonly>
       </div>
     </div>
     <div class="row" style="margin-top:12px; justify-content:flex-end">
@@ -59,14 +72,14 @@
     </div>
   </form>
 
-  {% if ranking_data %}
-    {% for song, records in ranking_data.items() %}
+  {% if ranking_list %}
+    {% for item in ranking_list %}
       <div class="song card">
         <div class="song-head">
           <div>
-            <div class="song-title">{{ song }}</div>
-            {% if records and records[0]["歌手名"] %}
-              <div class="artist">歌手名：<span class="chip">{{ records[0]["歌手名"] }}</span></div>
+            <div class="song-title">{{ item.song }}</div>
+            {% if item.singer %}
+              <div class="artist">歌手名：<span class="chip">{{ item.singer }}</span></div>
             {% endif %}
           </div>
           <div class="muted" style="font-size:12px">Top 3</div>
@@ -83,7 +96,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for record in records %}
+              {% for record in item.records %}
                 <tr>
                   <td class="rank">
                     {% if loop.index == 1 %}<span class="medal-1">🥇 1位</span>
@@ -93,7 +106,6 @@
                   <td>{{ record["ユーザー"] }}</td>
                   <td>{{ '%.2f'|format(record["スコア"]) }}</td>
                   <td>
-                    {# ①：日付は YYYY-MM-DD のみ表示（DBには時間も保持） #}
                     {% if record["日付"] %}
                       {{ record["日付"].strftime('%Y-%m-%d') }}
                     {% endif %}
