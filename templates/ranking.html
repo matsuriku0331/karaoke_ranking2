@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}曲別ランキング | カラオケランキング{% endblock %}
+{% block title %}曲別ランキング | 根性カラオキランキング{% endblock %}
 
 {# ヘッダの更新ボタンに検索条件を引き継ぐ hidden を差し込む #}
 {% block update_hidden %}
@@ -16,11 +16,11 @@
     <div class="grid cols-3">
       <div>
         <label for="song">曲名検索</label>
-        <input type="text" id="song" name="song" placeholder="例：残酷な天使のテーゼ" value="{{ song_query }}">
+        <input type="text" id="song" name="song" placeholder="例：PERFECT HUMAN" value="{{ song_query }}">
       </div>
       <div>
         <label for="singer">歌手名検索</label>
-        <input type="text" id="singer" name="singer" placeholder="例：宇多田ヒカル" value="{{ singer_query }}">
+        <input type="text" id="singer" name="singer" placeholder="例：三浦たくま" value="{{ singer_query }}">
       </div>
       <div>
         <label for="sort">並び替え（あいうえお）</label>
@@ -43,10 +43,10 @@
           <div>
             <div class="song-title">{{ song }}</div>
             {% if records and records[0]["歌手名"] %}
-              <div class="artist">歌手名の例：<span class="chip">{{ records[0]["歌手名"] }}</span></div>
+              <div class="artist">歌手名：<span class="chip">{{ records[0]["歌手名"] }}</span></div>
             {% endif %}
           </div>
-          <div class="muted" style="font-size:12px">Top 3（ユーザー被りなし）</div>
+          <div class="muted" style="font-size:12px">Top 3</div>
         </div>
 
         <table>
