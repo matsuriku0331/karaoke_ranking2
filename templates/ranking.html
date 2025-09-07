@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}ランキング - カラオケランキング{% endblock %}
+{% block head %}
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #333; padding: 6px 10px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .song-block { margin: 22px 0; }
+    .song-title { font-weight: bold; font-size: 1.2em; margin-bottom: 6px; }
+    .toolbar { display:flex; gap:12px; align-items:center; margin: 10px 0 16px; }
+  </style>
+{% endblock %}
+{% block content %}
+  <h1>曲別ランキング</h1>
+
+  <form method="get" action="{{ url_for('ranking') }}" class="toolbar">
+    <label for="song">曲名:</label>
+    <input type="text" id="song" name="song" value="{{ song_query }}" />
+    <label for="singer">歌手名:</label>
+    <input type="text" id="singer" name="singer" value="{{ singer_query }}" />
+    <label for="sort">あいうえお順:</label>
+    <select name="sort" id="sort">
+      <option value="asc" {% if sort_order=="asc" %}selected{% endif %}>昇順</option>
+      <option value="desc" {% if sort_order=="desc" %}selected{% endif %}>降順</option>
+    </select>
+    <button type="submit">検索</button>
+  </form>
+
+  <form method="post" action="{{ url_for('update_ranking') }}">
+    <input type="hidden" name="song" value="{{ song_query }}" />
+    <input type="hidden" name="singer" value="{{ singer_query }}" />
+    <input type="hidden" name="sort" value="{{ sort_order }}" />
+    <button type="submit">ランキング更新（DAM★ともから取得）</button>
+  </form>
+
+  <br/>
+
+  {% if ranking_data %}
+    {% for song, records in ranking_data.items() %}
+      <div class="song-block">
+        <div class="song-title">{{ song }}</div>
+        <table>
+          <thead>
+            <tr>
+              <th>順位</th>
+              <th>歌手名</th>
+              <th>ユーザー</th>
+              <th>スコア</th>
+              <th>日付</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in records %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ record["歌手名"] }}</td>
+                <td>{{ record["ユーザー"] }}</td>
+                <td>{{ '%.3f' % record["スコア"] }}</td>
+                <td>{{ record["日付"].strftime('%Y-%m-%d %H:%M') if record["日付"] }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>ランキングデータはありません。</p>
+  {% endif %}
+{% endblock %}

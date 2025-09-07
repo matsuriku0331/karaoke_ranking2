@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}ログイン - カラオケランキング{% endblock %}
+{% block content %}
+  <h1>ログイン</h1>
+  <form method="post" action="{{ url_for('login') }}">
+    <label for="username">ユーザー名:</label>
+    <select id="username" name="username" required>
+      {% for u in users %}
+        <option value="{{ u }}">{{ u }}</option>
+      {% endfor %}
+    </select>
+    <br/><br/>
+    <label for="password">合言葉:</label>
+    <input type="password" id="password" name="password" required />
+    <br/><br/>
+    <button type="submit">ログイン</button>
+  </form>
+{% endblock %}

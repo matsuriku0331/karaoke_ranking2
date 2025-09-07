@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}カラオケランキング{% endblock %}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    a.button { display: inline-block; padding: 10px 20px; margin: 5px 0; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; }
+    a.button:hover { background-color: #45a049; }
+    .flash { padding:10px; border-radius:6px; margin:8px 0; }
+    .flash.success { background:#e6ffed; border:1px solid #70d07d; }
+    .flash.info { background:#eef6ff; border:1px solid #77a8e8; }
+    .flash.warning { background:#fff8e1; border:1px solid #e8c877; }
+    .flash.danger { background:#ffecec; border:1px solid #e87777; }
+    header { display:flex; gap:12px; align-items:center; margin-bottom: 16px; }
+    header .spacer { flex:1; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <a href="{{ url_for('home') }}" class="button">ホーム</a>
+    <a href="{{ url_for('ranking') }}" class="button">ランキング</a>
+    <div class="spacer"></div>
+    {% if session.get('login_user') %}
+      <span>ログイン中: <strong>{{ session.get('login_user') }}</strong></span>
+      <a href="{{ url_for('logout') }}" class="button" style="background:#777;">ログアウト</a>
+    {% else %}
+      <a href="{{ url_for('login') }}" class="button">ログイン</a>
+    {% endif %}
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</body>
+</html>
