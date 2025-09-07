@@ -38,11 +38,13 @@
     .pill.cyan{background:rgba(6,182,212,.10); border-color:rgba(6,182,212,.35); color:#67e8f9}
     .pill.gray{background:rgba(148,163,184,.08); border-color:rgba(148,163,184,.30); color:#cbd5e1}
 
-    /* 入力欄のサイズ調整 */
+    /* 入力欄のサイズ調整（スマホ押しやすさ） */
     input[type="text"], select {
-      padding: 12px 14px; /* 旧: 10px 12px */
+      padding: 12px 14px;
       font-size: 15px;
     }
+    .name-link{ color:var(--text); text-decoration:none; }
+    .name-link:hover{ text-decoration:underline; }
 
     /* スマホ時にさらに大きく */
     @media (max-width: 640px) {
@@ -71,7 +73,7 @@
     </a>
   </div>
 
-  {# ---- 一人ずつの情報カード ---- #}
+  {# ---- 一人ずつの情報カード（平均 / 1位 / 3位 / 曲数） ---- #}
   {% set users_fixed = ['まつりく','えす','こんけあ'] %}
   <div class="user-cards">
     {% for uname in users_fixed %}
@@ -82,18 +84,19 @@
              'background:linear-gradient(180deg,#06b6d4,#0891b2);' if uname=='えす' else
              'background:linear-gradient(180deg,#a78bfa,#7c3aed);' %}
           <span class="dot" style="{{ color }}"></span>
-          <span>{{ uname }}</span>
+          <a class="name-link" href="{{ url_for('user_history', username=uname) }}">{{ uname }}</a>
         </div>
         <div class="stats">
           <div class="pill acc">平均 {{ '%.2f'|format(user_averages.get(uname, 0)) }}</div>
           <div class="pill cyan">1位 {{ first_place_counts.get(uname, 0) }}</div>
+          <div class="pill">3位 {{ third_place_counts.get(uname, 0) }}</div>
           <div class="pill gray">曲数 {{ user_total_records.get(uname, 0) }}</div>
         </div>
       </div>
     {% endfor %}
   </div>
 
-  <!-- 検索フォーム -->
+  <!-- 検索フォーム（曲名・歌手名。並び替えは固定：1位スコア降順） -->
   <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
     <div class="grid cols-3">
       <div>
@@ -146,7 +149,11 @@
                     {% elif loop.index == 2 %}<span class="medal-2">🥈 2位</span>
                     {% else %}<span class="medal-3">🥉 3位</span>{% endif %}
                   </td>
-                  <td>{{ record["ユーザー"] }}</td>
+                  <td>
+                    <a class="name-link" href="{{ url_for('user_history', username=record['ユーザー']) }}">
+                      {{ record["ユーザー"] }}
+                    </a>
+                  </td>
                   <td>{{ '%.2f'|format(record["スコア"]) }}</td>
                   <td>
                     {% if record["日付"] %}

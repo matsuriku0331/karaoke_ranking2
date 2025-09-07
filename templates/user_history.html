@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ username }} の履歴 | 根性カラオキランキング{% endblock %}
+
+{% block head %}
+  <style>
+    .table-wrap{overflow-x:auto}
+    .col-date{min-width: 140px;}
+    @media (max-width:720px){ .col-date{min-width: 160px;} }
+    .subtle{color:var(--muted); font-size:13px}
+    .header-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="header-row h1">
+    <span>{{ username }} の履歴</span>
+    <div class="row" style="gap:8px">
+      <a href="{{ url_for('ranking') }}" class="btn secondary" style="font-size:14px; padding:6px 12px;">ランキングへ</a>
+      <a href="{{ url_for('home') }}" class="btn secondary" style="font-size:14px; padding:6px 12px;">ホームに戻る</a>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="subtle">全{{ total }}件</div>
+    <form method="get" class="grid cols-3" style="margin-top:10px">
+      <div>
+        <label for="song">曲名検索</label>
+        <input type="text" id="song" name="song" placeholder="例：キセキ" value="{{ song_query }}">
+      </div>
+      <div>
+        <label for="singer">歌手名検索</label>
+        <input type="text" id="singer" name="singer" placeholder="例：GReeeeN" value="{{ singer_query }}">
+      </div>
+      <div>
+        <label for="sort">並び替え</label>
+        <select id="sort" name="sort">
+          <option value="score"  {% if sort=='score' %}selected{% endif %}>得点が高い順</option>
+          <option value="recent" {% if sort=='recent' %}selected{% endif %}>最近歌った順</option>
+          <option value="oldest" {% if sort=='oldest' %}selected{% endif %}>古い順</option>
+        </select>
+      </div>
+      <div class="row" style="grid-column:1/-1; justify-content:flex-end; margin-top:8px">
+        <a class="btn secondary" href="{{ url_for('user_history', username=username) }}">条件クリア</a>
+        <button class="btn" type="submit">適用</button>
+      </div>
+    </form>
+  </div>
+
+  {% if records %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:200px">曲名</th>
+            <th style="min-width:140px">歌手名</th>
+            <th style="min-width:90px">スコア</th>
+            <th class="col-date">日付</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+            <tr>
+              <td>{{ r["曲名"] }}</td>
+              <td>{{ r["歌手名"] }}</td>
+              <td>{{ '%.2f'|format(r["スコア"]) }}</td>
+              <td>{% if r["日付"] %}{{ r["日付"].strftime('%Y-%m-%d %H:%M') }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="muted">該当する履歴はありません。</div>
+    </div>
+  {% endif %}
+{% endblock %}

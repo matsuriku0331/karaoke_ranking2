@@ -1,113 +1,87 @@
 {% extends "base.html" %}
-{% block title %}管理画面 | 根性カラオキ{% endblock %}
+{% block title %}管理 | 根性カラオキランキング{% endblock %}
+
+{% block head %}
+  <style>
+    .header-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+    .form-grid{display:grid; gap:12px; grid-template-columns:1fr 1fr}
+    @media (max-width:720px){ .form-grid{grid-template-columns:1fr} }
+    .help{color:var(--muted); font-size:12px}
+    .flash{
+      margin:12px 0; padding:10px 12px; border-radius:10px;
+      border:1px solid var(--border); background:rgba(148,163,184,.08)
+    }
+    .flash.error{border-color:#b91c1c; background:rgba(239,68,68,.08); color:#fecaca}
+    .flash.info{border-color:#064e3b; background:rgba(34,197,94,.08); color:#bbf7d0}
+  </style>
+{% endblock %}
 
 {% block content %}
-  <div class="h1">管理画面</div>
+  <div class="header-row h1">
+    <span>管理</span>
+    <div class="row" style="gap:8px">
+      <a class="btn secondary" href="{{ url_for('home') }}" style="font-size:14px; padding:6px 12px;">ホームに戻る</a>
+    </div>
+  </div>
 
+  {# フラッシュ表示 #}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="card" style="margin-bottom:16px">
-        {% for cat, msg in messages %}
-          <div class="muted">{{ msg }}</div>
-        {% endfor %}
-      </div>
+      {% for category, msg in messages %}
+        <div class="flash {{ category }}">{{ msg }}</div>
+      {% endfor %}
     {% endif %}
   {% endwith %}
 
-  <!-- 検索 -->
-  <form class="card" method="get" action="{{ url_for('admin') }}" style="margin-bottom:16px">
-    <div class="grid cols-3">
-      <div>
-        <label for="q_song">曲名検索</label>
-        <input type="text" id="q_song" name="song" placeholder="例：天使" value="{{ q_song }}">
-      </div>
-      <div>
-        <label for="q_user">ユーザー検索</label>
-        <input type="text" id="q_user" name="user" placeholder="例：まつりく" value="{{ q_user }}">
-      </div>
-      <div>
-        <label for="q_singer">歌手名検索</label>
-        <input type="text" id="q_singer" name="singer" placeholder="例：高橋洋子" value="{{ q_singer }}">
-      </div>
-    </div>
-    <div class="row" style="margin-top:12px; justify-content:flex-end">
-      <a class="btn secondary" href="{{ url_for('admin') }}">条件クリア</a>
-      <button class="btn" type="submit">検索</button>
-    </div>
-  </form>
-
-  <!-- 追加フォーム -->
   <div class="card" style="margin-bottom:16px">
-    <div class="h1" style="margin-top:0">手動で1件追加</div>
-    <form method="post" action="{{ url_for('admin_add') }}">
-      <div class="grid cols-3">
-        <div>
-          <label for="song">曲名 *</label>
-          <input type="text" id="song" name="song" placeholder="曲名" required>
-        </div>
-        <div>
-          <label for="singer">歌手名</label>
-          <input type="text" id="singer" name="singer" placeholder="歌手名（任意）">
-        </div>
-        <div>
-          <label for="user">ユーザー *</label>
-          <input type="text" id="user" name="user" placeholder="例：まつりく" required>
-        </div>
+    <div class="h1" style="font-size:18px">手動で1件追加</div>
+    <form method="post" action="{{ url_for('admin_add') }}" class="form-grid">
+      <div>
+        <label>曲名</label>
+        <input type="text" name="song" required>
       </div>
-      <div class="grid cols-3" style="margin-top:12px">
-        <div>
-          <label for="score">スコア *</label>
-          <input type="text" id="score" name="score" placeholder="例：98.72" required>
-        </div>
-        <div>
-          <label for="date">日付 *</label>
-          <input type="datetime-local" id="date" name="date" required>
-        </div>
-        <div style="display:flex; align-items:flex-end; justify-content:flex-end">
-          <button class="btn" type="submit">追加</button>
-        </div>
+      <div>
+        <label>歌手名（任意）</label>
+        <input type="text" name="singer">
       </div>
-      <div class="muted" style="margin-top:6px; font-size:12px">
-        * 必須。日時は「YYYY-MM-DDTHH:MM」形式（例：2025-09-07T21:30）。DBには時刻まで保存されます。
+      <div>
+        <label>ユーザー（例：まつりく / えす / こんけあ）</label>
+        <input type="text" name="user" placeholder="まつりく" required>
+      </div>
+      <div>
+        <label>スコア（例：95.23）</label>
+        <input type="text" name="score" placeholder="95.23" required>
+      </div>
+      <div>
+        <label>日時</label>
+        <input type="datetime-local" name="date" class="dtl">
+        <div class="help">or 「YYYY-MM-DD」形式でもOK</div>
+      </div>
+      <div style="display:flex; align-items:end; justify-content:flex-end">
+        <button class="btn" type="submit">追加</button>
       </div>
     </form>
   </div>
 
-  <!-- 一覧（最新200件） -->
   <div class="card">
-    <div class="song-head" style="margin-bottom:4px">
-      <div class="song-title">最新データ（最大200件）</div>
-      <a class="btn secondary" href="{{ url_for('admin_logout') }}">ログアウト</a>
-    </div>
-
-    <div style="overflow-x:auto">
-      <table>
-        <thead>
-          <tr>
-            <th style="min-width:60px">ID</th>
-            <th style="min-width:180px">曲名</th>
-            <th style="min-width:160px">歌手名</th>
-            <th style="min-width:120px">ユーザー</th>
-            <th style="min-width:90px">スコア</th>
-            <th style="min-width:160px">日付</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in rows %}
-            <tr>
-              <td>{{ r.id }}</td>
-              <td>{{ r.song }}</td>
-              <td>{{ r.singer }}</td>
-              <td>{{ r.user }}</td>
-              <td>{{ '%.2f'|format(r.score) }}</td>
-              <td>{{ r.date.strftime('%Y-%m-%d %H:%M') if r.date }}</td>
-            </tr>
-          {% endfor %}
-          {% if not rows %}
-            <tr><td colspan="6" class="muted">データがありません。</td></tr>
-          {% endif %}
-        </tbody>
-      </table>
-    </div>
+    <div class="h1" style="font-size:18px">手動で1件削除</div>
+    <form method="post" action="{{ url_for('admin_delete') }}" class="form-grid">
+      <div>
+        <label>曲名</label>
+        <input type="text" name="del_song" required>
+      </div>
+      <div>
+        <label>ユーザー（例：まつりく / えす / こんけあ）</label>
+        <input type="text" name="del_user" placeholder="まつりく" required>
+      </div>
+      <div>
+        <label>日時</label>
+        <input type="datetime-local" name="del_date" class="dtl" required>
+        <div class="help">※ 「YYYY-MM-DD」だけだと同日別回と区別できません。極力「YYYY-MM-DDTHH:MM」で指定してください。</div>
+      </div>
+      <div style="display:flex; align-items:end; justify-content:flex-end">
+        <button class="btn secondary" type="submit">削除</button>
+      </div>
+    </form>
   </div>
 {% endblock %}
