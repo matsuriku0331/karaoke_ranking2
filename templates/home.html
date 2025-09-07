@@ -2,10 +2,6 @@
 {% block title %}ホーム - カラオケランキング{% endblock %}
 {% block content %}
   <h1>カラオケランキングへようこそ</h1>
-  <p>3人限定のスコア管理アプリです。DAM★ともから採点データを取得して、曲別に各人の最高点トップ3（ユーザー被りなし）を表示します。</p>
-  {% if not session.get('login_user') %}
-    <a href="{{ url_for('login') }}" class="button">ログイン</a>
-  {% else %}
-    <a href="{{ url_for('ranking') }}" class="button">現在のランキングを見る</a>
-  {% endif %}
+  <p>このサイトはどなたでも閲覧できます。最新の採点データは「ランキング更新」から取り込みます。</p>
+  <a href="{{ url_for('ranking') }}" class="button">現在のランキングを見る</a>
 {% endblock %}
