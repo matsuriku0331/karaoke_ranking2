@@ -17,6 +17,7 @@ ADMIN_PASS = os.environ.get("ADMIN_PASS", None)  # 管理者用共有パスワ�
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:
+    # Render の場合、postgres:// を postgresql:// に直す必要がある場合がある
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///scores.db"
@@ -33,6 +34,7 @@ class Score(db.Model):
     user = db.Column(db.String(200), nullable=False)    # ユーザー名
     score = db.Column(db.Float, nullable=False)         # スコア
     date = db.Column(db.DateTime, nullable=False)       # 日付（日時）
+    # 「曲名・ユーザー・日時（秒まで完全一致）」が同一なら重複としてスキップ
     __table_args__ = (UniqueConstraint('song', 'user', 'date', name='_song_user_date_uc'),)
 
     def to_record(self):
@@ -44,6 +46,7 @@ with app.app_context():
 # ---- Config / constants ----
 AI_SCORE_URL = "https://www.clubdam.com/app/damtomo/scoring/GetScoringAiListXML.do"
 
+# 環境変数からクッキー値を読む（安全運用）
 USER_COOKIES = {
     "まつりく": {
         "dam-uid": os.environ.get("U1_DAM_UID", ""),
@@ -53,7 +56,7 @@ USER_COOKIES = {
         "wm_ac": os.environ.get("U1_WM_AC", ""),
         "wm_dm": os.environ.get("U1_WM_DM", "")
     },
-    "えす": {
+    "ともだちA": {
         "dam-uid": os.environ.get("U2_DAM_UID", ""),
         "scr_cdm": os.environ.get("U2_SCR_CDM", ""),
         "scr_dt":  os.environ.get("U2_SCR_DT",  ""),
@@ -61,7 +64,7 @@ USER_COOKIES = {
         "wm_ac": os.environ.get("U2_WM_AC", ""),
         "wm_dm": os.environ.get("U2_WM_DM", "")
     },
-    "こんけあ": {
+    "ともだちB": {
         "dam-uid": os.environ.get("U3_DAM_UID", ""),
         "scr_cdm": os.environ.get("U3_SCR_CDM", ""),
         "scr_dt":  os.environ.get("U3_SCR_DT",  ""),
@@ -73,6 +76,9 @@ USER_COOKIES = {
 
 # ---- Helpers ----
 def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
+    """
+    DAM★とものAIスコア履歴を複数ページ取得。戻り値は DataFrame ["曲名","歌手名","ユーザー","スコア","日付"]
+    """
     all_scores = []
     for page in range(1, max_pages + 1):
         params = {"cdmCardNo": cookies.get("scr_cdm", ""), "pageNo": page, "detailFlg": 0}
@@ -115,6 +121,9 @@ def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
     return df
 
 def insert_scores_from_df(df_new):
+    """
+    取り込んだDFをDBへ。重複判定は (song, user, date) 完全一致のみスキップ。
+    """
     if df_new.empty:
         return 0
     df_new = df_new.copy()
@@ -155,12 +164,12 @@ def df_from_db():
     return pd.DataFrame(data)
 
 def parse_datetime_flexible(s: str):
-    """'YYYY-MM-DD', 'YYYY-MM-DD HH:MM', 'YYYY-MM-DDTHH:MM' などを受け入れる"""
+    """'YYYY-MM-DD', 'YYYY-MM-DD HH:MM', 'YYYY-MM-DDTHH:MM' など柔軟に受け入れる"""
     if not s:
         return None
     s = s.strip()
     try:
-        # HTML datetime-local は 'YYYY-MM-DDTHH:MM'
+        # 'YYYY-MM-DDTHH:MM'（datetime-local）
         return datetime.fromisoformat(s)
     except Exception:
         pass
@@ -195,24 +204,27 @@ def ranking():
 
     df_all = df_from_db()
 
-    # 統計（省略：ここはあなたの最新版のまま / 以前の機能）
+    # ---- 上部統計：平均点・1位数・歌唱回数（人別）＆その合計のみ ----
     user_averages = {}
     first_place_counts = {}
-    user_unique_song_counts = {}
-    total_unique_songs = 0
+    user_total_records = {}   # 人ごとの総レコード数（歌唱回数）
+    total_records_sum = 0     # 人別合計の和（= 全体歌唱回数と同義）
 
     if not df_all.empty:
+        # 平均点（全レコード平均）
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
-        user_unique_song_counts = df_all.groupby("ユーザー")["曲名"].nunique().to_dict()
-        total_unique_songs = int(df_all["曲名"].nunique())
+        # 人ごとの総レコード数（歌唱回数）
+        user_total_records = df_all.groupby("ユーザー").size().to_dict()
+        # 人別合計の和
+        total_records_sum = int(sum(user_total_records.values()))
 
-    # フィルタ
+    # 絞り込み（部分一致, 大文字小文字無視）
     if song_query:
         df_all = df_all[df_all["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
     if singer_query:
         df_all = df_all[df_all["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
 
-    # 最高点達成時の行抽出（同点は最初に達成）
+    # 最高点「達成時」の行抽出（同点は最初に達成）
     best_rows = pd.DataFrame(columns=["曲名", "ユーザー", "歌手名", "スコア", "日付"])
     if not df_all.empty:
         ordered = df_all.sort_values(["スコア", "日付"], ascending=[False, True])
@@ -228,7 +240,13 @@ def ranking():
             g_sorted = group.sort_values(["スコア", "日付"], ascending=[False, True])
             top3 = g_sorted.head(3).to_dict(orient="records")
             top_score = float(g_sorted.iloc[0]["スコア"])
-            ranking_list.append({"song": song, "top_score": top_score, "records": top3, "singer": g_sorted.iloc[0]["歌手名"]})
+            ranking_list.append({
+                "song": song,
+                "top_score": top_score,
+                "records": top3,
+                "singer": g_sorted.iloc[0]["歌手名"]
+            })
+            # 1位取得者（同点は最初に達成した人を1名）
             winner = g_sorted.iloc[0]["ユーザー"]
             first_place_counts[winner] = first_place_counts.get(winner, 0) + 1
 
@@ -239,18 +257,20 @@ def ranking():
         ranking_list=ranking_list,
         user_averages=user_averages,
         first_place_counts=first_place_counts,
-        user_unique_song_counts=user_unique_song_counts,
-        total_unique_songs=total_unique_songs,
+        user_total_records=user_total_records,
+        total_records_sum=total_records_sum,
         song_query=song_query,
         singer_query=singer_query,
     )
 
 @app.route("/update_ranking", methods=["POST"])
 def update_ranking():
+    # 検索条件保持（フォームの hidden から）
     song_query = request.form.get("song", "")
     singer_query = request.form.get("singer", "")
 
     total_inserted = 0
+    # 登録ユーザー分を取得して DB に挿入（重複は一意制約でスキップ）
     for user, cookies in USER_COOKIES.items():
         if not cookies.get("scr_cdm"):
             continue
@@ -260,7 +280,7 @@ def update_ranking():
             total_inserted += inserted
             print(f"[update] {user}: inserted {inserted} rows")
 
-    # 再描画は ranking() と同じロジックを再利用
+    # 集計は /ranking に任せる（検索条件を付けてリダイレクト）
     return redirect(url_for("ranking", song=song_query, singer=singer_query))
 
 # ---- Admin Routes ----
@@ -348,7 +368,7 @@ def admin_add():
         flash(f"予期せぬエラー: {e}", "error")
 
     return redirect(url_for("admin"))
-    
+
 # ---- 起動 ----
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

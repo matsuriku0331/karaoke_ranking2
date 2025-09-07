@@ -30,8 +30,8 @@
 {% block content %}
   <div class="h1">曲別ランキング</div>
 
-  {# 人ごとの統計（平均・1位取得数・合計曲数） + 全体ユニーク曲数 #}
-  {% if user_averages or first_place_counts or user_unique_song_counts %}
+  {# 人ごとの統計（平均・1位取得・歌唱回数） + 全体（人別合計の和） #}
+  {% if user_averages or first_place_counts or user_total_records %}
     <div class="card" style="margin-bottom:16px">
       <div class="stats-row">
         {% set users = (user_averages.keys() | list) %}
@@ -41,10 +41,11 @@
           </div>
           <span class="stat-chip">平均：{{ '%.2f'|format(user_averages.get(uname, 0)) }}</span>
           <span class="stat-chip cyan">1位取得：{{ first_place_counts.get(uname, 0) }}</span>
-          <span class="stat-chip gray">合計曲数：{{ user_unique_song_counts.get(uname, 0) }}</span>
+          <span class="stat-chip gray">歌唱回数：{{ user_total_records.get(uname, 0) }}</span>
         {% endfor %}
-        {% if total_unique_songs %}
-          <span class="stat-chip" style="margin-left:auto">全体ユニーク曲：{{ total_unique_songs }}</span>
+
+        {% if total_records_sum %}
+          <span class="stat-chip" style="margin-left:auto">全体歌唱回数（人別合計）：{{ total_records_sum }}</span>
         {% endif %}
       </div>
     </div>
