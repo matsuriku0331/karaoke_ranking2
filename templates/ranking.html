@@ -1,62 +1,78 @@
-{% extends 'base.html' %}
-{% block title %}ランキング - カラオケランキング{% endblock %}
-{% block head %}
-  <style>
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #333; padding: 6px 10px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    .song-block { margin: 22px 0; }
-    .song-title { font-weight: bold; font-size: 1.2em; margin-bottom: 6px; }
-    .toolbar { display:flex; gap:12px; align-items:center; margin: 10px 0 16px; }
-  </style>
+{% extends "base.html" %}
+{% block title %}曲別ランキング | カラオケランキング{% endblock %}
+
+{# ヘッダの更新ボタンに検索条件を引き継ぐ hidden を差し込む #}
+{% block update_hidden %}
+  <input type="hidden" name="song" value="{{ song_query }}">
+  <input type="hidden" name="singer" value="{{ singer_query }}">
+  <input type="hidden" name="sort" value="{{ sort_order }}">
 {% endblock %}
+
 {% block content %}
-  <h1>曲別ランキング</h1>
+  <div class="h1">曲別ランキング</div>
 
-  <form method="get" action="{{ url_for('ranking') }}" class="toolbar">
-    <label for="song">曲名:</label>
-    <input type="text" id="song" name="song" value="{{ song_query }}" />
-    <label for="singer">歌手名:</label>
-    <input type="text" id="singer" name="singer" value="{{ singer_query }}" />
-    <label for="sort">あいうえお順:</label>
-    <select name="sort" id="sort">
-      <option value="asc" {% if sort_order=="asc" %}selected{% endif %}>昇順</option>
-      <option value="desc" {% if sort_order=="desc" %}selected{% endif %}>降順</option>
-    </select>
-    <button type="submit">検索</button>
+  <!-- 検索フォーム -->
+  <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
+    <div class="grid cols-3">
+      <div>
+        <label for="song">曲名検索</label>
+        <input type="text" id="song" name="song" placeholder="例：残酷な天使のテーゼ" value="{{ song_query }}">
+      </div>
+      <div>
+        <label for="singer">歌手名検索</label>
+        <input type="text" id="singer" name="singer" placeholder="例：宇多田ヒカル" value="{{ singer_query }}">
+      </div>
+      <div>
+        <label for="sort">並び替え（あいうえお）</label>
+        <select name="sort" id="sort">
+          <option value="asc"  {% if sort_order=='asc' %}selected{% endif %}>昇順</option>
+          <option value="desc" {% if sort_order=='desc' %}selected{% endif %}>降順</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px; justify-content:flex-end">
+      <a class="btn secondary" href="{{ url_for('ranking') }}">条件クリア</a>
+      <button class="btn" type="submit">検索</button>
+    </div>
   </form>
-
-  <form method="post" action="{{ url_for('update_ranking') }}">
-    <input type="hidden" name="song" value="{{ song_query }}" />
-    <input type="hidden" name="singer" value="{{ singer_query }}" />
-    <input type="hidden" name="sort" value="{{ sort_order }}" />
-    <button type="submit">ランキング更新（DAM★ともから取得）</button>
-  </form>
-
-  <br/>
 
   {% if ranking_data %}
     {% for song, records in ranking_data.items() %}
-      <div class="song-block">
-        <div class="song-title">{{ song }}</div>
+      <div class="song card">
+        <div class="song-head">
+          <div>
+            <div class="song-title">{{ song }}</div>
+            {% if records and records[0]["歌手名"] %}
+              <div class="artist">歌手名の例：<span class="chip">{{ records[0]["歌手名"] }}</span></div>
+            {% endif %}
+          </div>
+          <div class="muted" style="font-size:12px">Top 3（ユーザー被りなし）</div>
+        </div>
+
         <table>
           <thead>
             <tr>
-              <th>順位</th>
-              <th>歌手名</th>
-              <th>ユーザー</th>
-              <th>スコア</th>
+              <th style="width:60px">順位</th>
+              <th style="min-width:140px">ユーザー</th>
+              <th style="min-width:100px">スコア</th>
               <th>日付</th>
             </tr>
           </thead>
           <tbody>
             {% for record in records %}
               <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ record["歌手名"] }}</td>
+                <td class="rank">
+                  {% if loop.index == 1 %}<span class="medal-1">🥇 1位</span>
+                  {% elif loop.index == 2 %}<span class="medal-2">🥈 2位</span>
+                  {% else %}<span class="medal-3">🥉 3位</span>{% endif %}
+                </td>
                 <td>{{ record["ユーザー"] }}</td>
-                <td>{{ '%.3f' % record["スコア"] }}</td>
-                <td>{{ record["日付"].strftime('%Y-%m-%d %H:%M') if record["日付"] }}</td>
+                <td>{{ '%.2f'|format(record["スコア"]) }}</td>
+                <td>
+                  {# pandas→datetimeのまま渡ってくるのでそのまま表示。必要なら↓のように整形 #}
+                  {{ record["日付"] }}
+                  {# 例: {{ record["日付"].strftime('%Y-%m-%d %H:%M') if record["日付"] }} #}
+                </td>
               </tr>
             {% endfor %}
           </tbody>
@@ -64,6 +80,8 @@
       </div>
     {% endfor %}
   {% else %}
-    <p>ランキングデータはありません。</p>
+    <div class="card">
+      <div class="muted">ランキングデータはまだありません。右上の「ランキング更新」から取り込んでください。</div>
+    </div>
   {% endif %}
 {% endblock %}

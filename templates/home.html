@@ -1,7 +1,13 @@
-{% extends 'base.html' %}
-{% block title %}ホーム - カラオケランキング{% endblock %}
+{% extends "base.html" %}
+{% block title %}ホーム | カラオケランキング{% endblock %}
+
 {% block content %}
-  <h1>カラオケランキングへようこそ</h1>
-  <p>このサイトはどなたでも閲覧できます。最新の採点データは「ランキング更新」から取り込みます。</p>
-  <a href="{{ url_for('ranking') }}" class="button">現在のランキングを見る</a>
+  <div class="card">
+    <div class="h1">ようこそ！</div>
+    <p class="muted">DAM★ともから採点データを取り込み、曲ごとの最高点 Top3 を表示します。</p>
+    <div class="row" style="margin-top:12px">
+      <a class="btn" href="{{ url_for('ranking') }}">現在のランキングを見る</a>
+      <a class="btn secondary" href="https://www.clubdam.com/" target="_blank" rel="noopener">DAM★ともサイトへ</a>
+    </div>
+  </div>
 {% endblock %}
