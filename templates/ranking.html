@@ -10,14 +10,17 @@
     /* 個人カード */
     .user-cards{
       display:grid; gap:12px;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);   /* 全体カードを追加するため4列 */
       margin-bottom:16px;
     }
+    @media (max-width:1120px){
+      .user-cards{grid-template-columns: 1fr 1fr 1fr}
+    }
     @media (max-width:920px){
-      .user-cards{grid-template-columns: 1fr 1fr;}
+      .user-cards{grid-template-columns: 1fr 1fr}
     }
     @media (max-width:640px){
-      .user-cards{grid-template-columns: 1fr;}
+      .user-cards{grid-template-columns: 1fr}
     }
     .user-card .name{
       display:flex; align-items:center; gap:10px;
@@ -46,6 +49,13 @@
     .name-link{ color:var(--text); text-decoration:none; }
     .name-link:hover{ text-decoration:underline; }
 
+    /* スコア強調（全画面共通トーン） */
+    .score{
+      font-weight:900;
+      letter-spacing:.2px;
+      text-shadow:0 0 12px rgba(34,197,94,.18);
+    }
+
     /* スマホ時にさらに大きく */
     @media (max-width: 640px) {
       input[type="text"], select {
@@ -73,7 +83,7 @@
     </a>
   </div>
 
-  {# ---- 一人ずつの情報カード（平均 / 1位 / 3位 / 曲数） ---- #}
+  {# ---- 一人ずつの情報カード（平均 / 1位 / 3位 / 曲数） + 全体カード ---- #}
   {% set users_fixed = ['まつりく','えす','こんけあ'] %}
   <div class="user-cards">
     {% for uname in users_fixed %}
@@ -87,13 +97,24 @@
           <a class="name-link" href="{{ url_for('user_history', username=uname) }}">{{ uname }}</a>
         </div>
         <div class="stats">
-          <div class="pill acc">平均 {{ '%.2f'|format(user_averages.get(uname, 0)) }}</div>
-          <div class="pill cyan">1位 {{ first_place_counts.get(uname, 0) }}</div>
-          <a class="pill name-link" href="{{ url_for('user_third_rank', username=uname) }}">3位 {{ third_place_counts.get(uname, 0) }}</a>
-          <div class="pill gray">曲数 {{ user_total_records.get(uname, 0) }}</div>
+          <div class="pill acc">平均 <span class="score">{{ '%.2f'|format(user_averages.get(uname, 0)) }}</span></div>
+          <div class="pill cyan">1位 <span class="score">{{ first_place_counts.get(uname, 0) }}</span></div>
+          <a class="pill name-link" href="{{ url_for('user_third_rank', username=uname) }}">3位 <span class="score">{{ third_place_counts.get(uname, 0) }}</span></a>
+          <div class="pill gray">曲数 <span class="score">{{ user_total_records.get(uname, 0) }}</span></div>
         </div>
       </div>
     {% endfor %}
+
+    {# 全体の履歴カード（ユーザーと同列） #}
+    <div class="user-card card">
+      <div class="name">
+        <span class="dot" style="background:linear-gradient(180deg,#f59e0b,#b45309)"></span>
+        <a class="name-link" href="{{ url_for('all_history') }}">全体</a>
+      </div>
+      <div class="stats">
+        <a class="pill" href="{{ url_for('all_history') }}">全体の履歴を見る</a>
+      </div>
+    </div>
   </div>
 
   <!-- 検索フォーム（曲名・歌手名。並び替えは固定：1位スコア降順） -->
@@ -154,7 +175,7 @@
                       {{ record["ユーザー"] }}
                     </a>
                   </td>
-                  <td>{{ '%.2f'|format(record["スコア"]) }}</td>
+                  <td><span class="score">{{ '%.2f'|format(record["スコア"]) }}</span></td>
                   <td>
                     {% if record["日付"] %}
                       {{ record["日付"].strftime('%Y-%m-%d') }}
@@ -172,4 +193,4 @@
       <div class="muted">ランキングデータはまだありません。右上の「ランキング更新」から取り込んでください。</div>
     </div>
   {% endif %}
-{% endblock %}
+{% endblock %

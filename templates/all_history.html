@@ -9,6 +9,25 @@
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
     .controls .field{min-width:200px}
     @media (max-width:640px){ .controls .field{min-width:unset; flex:1} }
+
+    /* ユーザー色（左端インセットバー & 名前チップ色） */
+    .bar-green { box-shadow: inset 3px 0 0 #22c55e; }
+    .bar-cyan  { box-shadow: inset 3px 0 0 #06b6d4; }
+    .bar-violet{ box-shadow: inset 3px 0 0 #a78bfa; }
+    .uname-chip{
+      display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700;
+      border:1px solid var(--border);
+    }
+    .chip-green { background:rgba(34,197,94,.10);  border-color:rgba(34,197,94,.35);  color:#86efac }
+    .chip-cyan  { background:rgba(6,182,212,.10);  border-color:rgba(6,182,212,.35);  color:#67e8f9 }
+    .chip-violet{ background:rgba(167,139,250,.10);border-color:rgba(167,139,250,.35);color:#c4b5fd }
+
+    /* スコア強調（全画面共通トーン） */
+    .score{
+      font-weight:900;
+      letter-spacing:.2px;
+      text-shadow:0 0 12px rgba(34,197,94,.18);
+    }
   </style>
 {% endblock %}
 
@@ -51,18 +70,21 @@
           <tr>
             <th>曲名</th>
             <th>スコア</th>
+            <th>ユーザー名</th>
             <th>歌手名</th>
-            <th>ユーザー</th>
             <th class="col-date">日付</th>
           </tr>
         </thead>
         <tbody>
           {% for r in records %}
-            <tr>
+            {% set u = r["ユーザー"] %}
+            {% set bar = 'bar-green' if u=='まつりく' else ('bar-cyan' if u=='えす' else 'bar-violet') %}
+            {% set chip = 'chip-green' if u=='まつりく' else ('chip-cyan' if u=='えす' else 'chip-violet') %}
+            <tr class="{{ bar }}">
               <td>{{ r["曲名"] }}</td>
-              <td>{{ '%.2f'|format(r["スコア"]) }}</td>
+              <td><span class="score">{{ '%.2f'|format(r["スコア"]) }}</span></td>
+              <td><span class="uname-chip {{ chip }}">{{ u }}</span></td>
               <td>{{ r["歌手名"] }}</td>
-              <td>{{ r["ユーザー"] }}</td>
               <td>{% if r["日付"] %}{{ r["日付"].strftime('%Y-%m-%d') }}{% endif %}</td>
             </tr>
           {% endfor %}
