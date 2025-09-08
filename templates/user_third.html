@@ -18,31 +18,54 @@
     </div>
   </div>
 
-  <div class="table-wrap card">
-    {% if items %}
-      <table>
-        <thead>
-          <tr>
-            <th>曲名</th>
-            <th>歌手名</th>
-            <th>スコア</th>
-            <th class="col-date">達成日</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in items %}
-            <tr>
-              <td>{{ r["曲名"] }}</td>
-              <td>{{ r["歌手名"] }}</td>
-              <td>{{ '%.2f'|format(r["スコア"]) }}</td>
-              <td>{% if r["日付"] %}{{ r["日付"].strftime('%Y-%m-%d') }}{% endif %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <div class="muted" style="margin-top:8px">全 {{ items|length }} 曲</div>
-    {% else %}
+  {% if ranking_cards %}
+    {% for item in ranking_cards %}
+      <div class="song card">
+        <div class="song-head">
+          <div>
+            <div class="song-title">{{ item.song }}</div>
+            {% if item.singer %}
+              <div class="artist">歌手名：<span class="chip">{{ item.singer }}</span></div>
+            {% endif %}
+          </div>
+          <div class="muted" style="font-size:12px">Top 3</div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px">順位</th>
+                <th style="min-width:140px">ユーザー</th>
+                <th style="min-width:100px">スコア</th>
+                <th class="col-date">日付</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for record in item.records %}
+                <tr>
+                  <td class="rank">
+                    {% if loop.index == 1 %}<span class="medal-1">🥇 1位</span>
+                    {% elif loop.index == 2 %}<span class="medal-2">🥈 2位</span>
+                    {% else %}<span class="medal-3">🥉 3位</span>{% endif %}
+                  </td>
+                  <td>{{ record["ユーザー"] }}</td>
+                  <td>{{ '%.2f'|format(record["スコア"]) }}</td>
+                  <td>
+                    {% if record["日付"] %}
+                      {{ record["日付"].strftime('%Y-%m-%d') }}
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="card">
       <div class="muted">3位の曲はまだありません。</div>
-    {% endif %}
-  </div>
+    </div>
+  {% endif %}
 {% endblock %}

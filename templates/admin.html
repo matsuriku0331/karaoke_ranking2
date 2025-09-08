@@ -76,13 +76,18 @@
         <input type="text" name="del_song" required>
       </div>
       <div>
-        <label>ユーザー（例：まつりく / えす / こんけあ）</label>
-        <input type="text" name="del_user" placeholder="まつりく" required>
+        <label>ユーザー</label>
+        <select name="del_user" required>
+          <option value="">選択してください</option>
+          <option value="まつりく">まつりく</option>
+          <option value="えす">えす</option>
+          <option value="こんけあ">こんけあ</option>
+        </select>
       </div>
       <div>
         <label>日時</label>
         <input type="datetime-local" name="del_date" class="dtl" required>
-        <div class="help">※ 「YYYY-MM-DD」だけだと同日別回と区別できません。極力「YYYY-MM-DDTHH:MM」で指定してください。</div>
+        <div class="help">※ 同じ日で複数回歌っている場合があるため、できるだけ時刻まで指定（YYYY-MM-DDTHH:MM）してください。</div>
       </div>
       <div style="display:flex; align-items:end; justify-content:flex-end">
         <button class="btn secondary" type="submit">削除</button>

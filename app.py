@@ -75,7 +75,7 @@ USER_COOKIES = {
 }
 
 # ---- Helpers ----
-def fetch_damtomo_ai_scores(username, cookies, max_pages=10):
+def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
     """
     DAM★とものAIスコア履歴を複数ページ取得。戻り値は DataFrame ["曲名","歌手名","ユーザー","スコア","日付"]
     """
@@ -169,8 +169,7 @@ def parse_datetime_flexible(s: str):
         return None
     s = s.strip()
     try:
-        # 'YYYY-MM-DDTHH:MM'（datetime-local）
-        return datetime.fromisoformat(s)
+        return datetime.fromisoformat(s)  # 'YYYY-MM-DD' も 'YYYY-MM-DDTHH:MM' もOK
     except Exception:
         pass
     for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d"):
@@ -211,9 +210,7 @@ def ranking():
     user_total_records = {}   # 人ごとの総レコード数（歌唱回数）
 
     if not df_all.empty:
-        # 平均点（全レコード平均）
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
-        # 人ごとの総レコード数（歌唱回数）
         user_total_records = df_all.groupby("ユーザー").size().to_dict()
 
     # 絞り込み（部分一致, 大文字小文字無視）
@@ -332,15 +329,15 @@ def user_history(username):
         singer_query=singer_query,
     )
 
-# ---- Third-place list per user ----
+# ---- Third-place list per user (Top3カードをランキングと同じUIで表示) ----
 @app.route("/user/<username>/thirds", methods=["GET"])
 def user_third_rank(username):
     """
-    そのユーザーが「曲別ランキングで3位」の曲一覧。
-    各曲について：最高点達成時のレコードを集計し、そのTop3で当該ユーザーが3位だったもの。
+    そのユーザーが「曲別ランキングで3位」の曲一覧を、
+    ランキングと同じTop3テーブルのカードで表示する。
     """
     df_all = df_from_db()
-    third_items = []
+    ranking_cards = []
     if not df_all.empty:
         ordered = df_all.sort_values(["スコア", "日付"], ascending=[False, True])
         best_rows = (
@@ -349,20 +346,56 @@ def user_third_rank(username):
         )
         for song, group in best_rows.groupby("曲名"):
             g_sorted = group.sort_values(["スコア", "日付"], ascending=[False, True])
-            top3 = g_sorted.head(3)
-            if len(top3) >= 3 and top3.iloc[2]["ユーザー"] == username:
-                rec = top3.iloc[2]
-                third_items.append({
-                    "曲名": rec["曲名"],
-                    "歌手名": rec["歌手名"],
-                    "ユーザー": rec["ユーザー"],
-                    "スコア": float(rec["スコア"]),
-                    "日付": rec["日付"]
+            top3_df = g_sorted.head(3)
+            if len(top3_df) >= 3 and top3_df.iloc[2]["ユーザー"] == username:
+                ranking_cards.append({
+                    "song": song,
+                    "singer": g_sorted.iloc[0]["歌手名"],
+                    "records": top3_df.to_dict(orient="records")
                 })
-        # 表示はスコアの高い順→達成が早い順
-        third_items.sort(key=lambda r: (r["スコア"], -r["日付"].timestamp() if r["日付"] else 0), reverse=True)
 
-    return render_template("user_third.html", username=username, items=third_items)
+    # 表示順は曲別ランキングの並びに近づけるため、1位スコア降順で
+    ranking_cards.sort(key=lambda x: x["records"][0]["スコア"] if x["records"] else 0, reverse=True)
+
+    return render_template("user_third.html", username=username, ranking_cards=ranking_cards)
+
+# ---- All users history (3人合算) ----
+@app.route("/history/all", methods=["GET"])
+def all_history():
+    sort = request.args.get("sort", "recent")  # score | recent | oldest | score_low
+    song_query = request.args.get("song", "").strip()
+    singer_query = request.args.get("singer", "").strip()
+
+    df = df_from_db()
+    if df.empty:
+        records = []
+        total = 0
+    else:
+        if song_query:
+            df = df[df["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
+        if singer_query:
+            df = df[df["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
+
+        if sort == "recent":
+            df = df.sort_values("日付", ascending=False)
+        elif sort == "oldest":
+            df = df.sort_values("日付", ascending=True)
+        elif sort == "score_low":
+            df = df.sort_values(["スコア", "日付"], ascending=[True, True])
+        else:  # score（高い順）
+            df = df.sort_values(["スコア", "日付"], ascending=[False, True])
+
+        records = df.to_dict(orient="records")
+        total = len(df)
+
+    return render_template(
+        "all_history.html",
+        records=records,
+        total=total,
+        sort=sort,
+        song_query=song_query,
+        singer_query=singer_query,
+    )
 
 # ---- Admin Routes（シンプル版：追加＆単件削除のみ） ----
 @app.route("/admin/login", methods=["GET", "POST"])
