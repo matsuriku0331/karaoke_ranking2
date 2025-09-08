@@ -75,7 +75,7 @@ USER_COOKIES = {
 }
 
 # ---- Helpers ----
-def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
+def fetch_damtomo_ai_scores(username, cookies, max_pages=10):
     """
     DAM★とものAIスコア履歴を複数ページ取得。戻り値は DataFrame ["曲名","歌手名","ユーザー","スコア","日付"]
     """
