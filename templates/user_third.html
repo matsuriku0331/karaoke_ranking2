@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ username }}の3位曲 | 根性カラオキランキング{% endblock %}
+
+{% block head %}
+  <style>
+    .table-wrap{overflow-x:auto}
+    .col-date{min-width: 140px;}
+    @media (max-width:720px){ .col-date{min-width: 160px;} }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="h1" style="display:flex; align-items:center; justify-content:space-between;">
+    <span>{{ username }} の 3位曲ランキング</span>
+    <div class="row" style="gap:8px">
+      <a class="btn secondary" href="{{ url_for('user_history', username=username) }}" style="font-size:14px; padding:6px 12px;">履歴へ</a>
+      <a class="btn secondary" href="{{ url_for('ranking') }}" style="font-size:14px; padding:6px 12px;">曲別ランキングへ</a>
+    </div>
+  </div>
+
+  <div class="table-wrap card">
+    {% if items %}
+      <table>
+        <thead>
+          <tr>
+            <th>曲名</th>
+            <th>歌手名</th>
+            <th>スコア</th>
+            <th class="col-date">達成日</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in items %}
+            <tr>
+              <td>{{ r["曲名"] }}</td>
+              <td>{{ r["歌手名"] }}</td>
+              <td>{{ '%.2f'|format(r["スコア"]) }}</td>
+              <td>{% if r["日付"] %}{{ r["日付"].strftime('%Y-%m-%d') }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="muted" style="margin-top:8px">全 {{ items|length }} 曲</div>
+    {% else %}
+      <div class="muted">3位の曲はまだありません。</div>
+    {% endif %}
+  </div>
+{% endblock %}

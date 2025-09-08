@@ -75,7 +75,7 @@ USER_COOKIES = {
 }
 
 # ---- Helpers ----
-def fetch_damtomo_ai_scores(username, cookies, max_pages=10):
+def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
     """
     DAM★とものAIスコア履歴を複数ページ取得。戻り値は DataFrame ["曲名","歌手名","ユーザー","スコア","日付"]
     """
@@ -293,33 +293,30 @@ def update_ranking():
 # ---- User History (public) ----
 @app.route("/user/<username>", methods=["GET"])
 def user_history(username):
-    # 受け取り
-    sort = request.args.get("sort", "score")  # score | recent | oldest
+    # 並び替え：デフォルトは「最近」
+    sort = request.args.get("sort", "recent")  # score | recent | oldest | score_low
     song_query = request.args.get("song", "").strip()
     singer_query = request.args.get("singer", "").strip()
 
-    # データ取得
     df = df_from_db()
     if df.empty:
         records = []
         total = 0
     else:
-        # 該当ユーザー
         df = df[df["ユーザー"] == username]
 
-        # 検索（部分一致・大文字小文字無視）
         if song_query:
             df = df[df["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
         if singer_query:
             df = df[df["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
 
-        # 並び替え
         if sort == "recent":
             df = df.sort_values("日付", ascending=False)
         elif sort == "oldest":
             df = df.sort_values("日付", ascending=True)
-        else:  # score
-            # 同点の場合は達成の早い方を先に
+        elif sort == "score_low":
+            df = df.sort_values(["スコア", "日付"], ascending=[True, True])
+        else:  # score（高い順）
             df = df.sort_values(["スコア", "日付"], ascending=[False, True])
 
         records = df.to_dict(orient="records")
@@ -334,6 +331,38 @@ def user_history(username):
         song_query=song_query,
         singer_query=singer_query,
     )
+
+# ---- Third-place list per user ----
+@app.route("/user/<username>/thirds", methods=["GET"])
+def user_third_rank(username):
+    """
+    そのユーザーが「曲別ランキングで3位」の曲一覧。
+    各曲について：最高点達成時のレコードを集計し、そのTop3で当該ユーザーが3位だったもの。
+    """
+    df_all = df_from_db()
+    third_items = []
+    if not df_all.empty:
+        ordered = df_all.sort_values(["スコア", "日付"], ascending=[False, True])
+        best_rows = (
+            ordered.groupby(["曲名", "ユーザー"], as_index=False)
+                   .first()[["曲名", "ユーザー", "歌手名", "スコア", "日付"]]
+        )
+        for song, group in best_rows.groupby("曲名"):
+            g_sorted = group.sort_values(["スコア", "日付"], ascending=[False, True])
+            top3 = g_sorted.head(3)
+            if len(top3) >= 3 and top3.iloc[2]["ユーザー"] == username:
+                rec = top3.iloc[2]
+                third_items.append({
+                    "曲名": rec["曲名"],
+                    "歌手名": rec["歌手名"],
+                    "ユーザー": rec["ユーザー"],
+                    "スコア": float(rec["スコア"]),
+                    "日付": rec["日付"]
+                })
+        # 表示はスコアの高い順→達成が早い順
+        third_items.sort(key=lambda r: (r["スコア"], -r["日付"].timestamp() if r["日付"] else 0), reverse=True)
+
+    return render_template("user_third.html", username=username, items=third_items)
 
 # ---- Admin Routes（シンプル版：追加＆単件削除のみ） ----
 @app.route("/admin/login", methods=["GET", "POST"])
@@ -353,7 +382,7 @@ def admin_login():
 @app.route("/admin", methods=["GET"])
 @admin_required
 def admin():
-    # 検索UIや一覧は出さず、追加＆削除フォームだけの管理ページ
+    # 追加＆削除フォームだけの管理ページ
     return render_template("admin.html")
 
 @app.route("/admin/add", methods=["POST"])

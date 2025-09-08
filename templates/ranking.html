@@ -89,7 +89,7 @@
         <div class="stats">
           <div class="pill acc">平均 {{ '%.2f'|format(user_averages.get(uname, 0)) }}</div>
           <div class="pill cyan">1位 {{ first_place_counts.get(uname, 0) }}</div>
-          <div class="pill">3位 {{ third_place_counts.get(uname, 0) }}</div>
+          <a class="pill name-link" href="{{ url_for('user_third_rank', username=uname) }}">3位 {{ third_place_counts.get(uname, 0) }}</a>
           <div class="pill gray">曲数 {{ user_total_records.get(uname, 0) }}</div>
         </div>
       </div>

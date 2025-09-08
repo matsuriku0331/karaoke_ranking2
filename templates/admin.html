@@ -45,8 +45,13 @@
         <input type="text" name="singer">
       </div>
       <div>
-        <label>ユーザー（例：まつりく / えす / こんけあ）</label>
-        <input type="text" name="user" placeholder="まつりく" required>
+        <label>ユーザー</label>
+        <select name="user" required>
+          <option value="">選択してください</option>
+          <option value="まつりく">まつりく</option>
+          <option value="えす">えす</option>
+          <option value="こんけあ">こんけあ</option>
+        </select>
       </div>
       <div>
         <label>スコア（例：95.23）</label>
