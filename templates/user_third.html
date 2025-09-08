@@ -6,13 +6,6 @@
     .table-wrap{overflow-x:auto}
     .col-date{min-width: 140px;}
     @media (max-width:720px){ .col-date{min-width: 160px;} }
-
-    /* スコア強調 */
-    .score{
-      font-weight:900;
-      letter-spacing:.2px;
-      text-shadow:0 0 12px rgba(34,197,94,.18);
-    }
   </style>
 {% endblock %}
 
@@ -32,7 +25,7 @@
           <div>
             <div class="song-title">{{ item.song }}</div>
             {% if item.singer %}
-              <div class="artist">歌手名：<span class="chip">{{ item.singer }}</span></div>
+              <div class="artist">歌手名：<span class="chip">{{ item.singer"] }}</span></div>
             {% endif %}
           </div>
           <div class="muted" style="font-size:12px">Top 3</div>
@@ -57,12 +50,8 @@
                     {% else %}<span class="medal-3">🥉 3位</span>{% endif %}
                   </td>
                   <td>{{ record["ユーザー"] }}</td>
-                  <td><span class="score">{{ '%.2f'|format(record["スコア"]) }}</span></td>
-                  <td>
-                    {% if record["日付"] %}
-                      {{ record["日付"].strftime('%Y-%m-%d') }}
-                    {% endif %}
-                  </td>
+                  <td><span class="score">{{ '%.3f'|format(record["スコア"]) }}</span></td>
+                  <td>{{ record["日付"]|fmtdate }}</td>
                 </tr>
               {% endfor %}
             </tbody>

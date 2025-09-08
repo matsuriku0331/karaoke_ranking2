@@ -23,8 +23,7 @@
       .user-cards{grid-template-columns: 1fr}
     }
     .user-card .name{
-      display:flex; align-items:center; gap:10px;
-      font-weight:800; letter-spacing:.3px; margin-bottom:6px;
+      display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px; margin-bottom:6px;
     }
     .user-card .name .dot{
       width:10px; height:10px; border-radius:999px;
@@ -41,32 +40,9 @@
     .pill.cyan{background:rgba(6,182,212,.10); border-color:rgba(6,182,212,.35); color:#67e8f9}
     .pill.gray{background:rgba(148,163,184,.08); border-color:rgba(148,163,184,.30); color:#cbd5e1}
 
-    /* 入力欄のサイズ調整（スマホ押しやすさ） */
-    input[type="text"], select {
-      padding: 12px 14px;
-      font-size: 15px;
-    }
+    input[type="text"], select { padding: 12px 14px; font-size: 15px; }
     .name-link{ color:var(--text); text-decoration:none; }
     .name-link:hover{ text-decoration:underline; }
-
-    /* スコア強調（全画面共通トーン） */
-    .score{
-      font-weight:900;
-      letter-spacing:.2px;
-      text-shadow:0 0 12px rgba(34,197,94,.18);
-    }
-
-    /* スマホ時にさらに大きく */
-    @media (max-width: 640px) {
-      input[type="text"], select {
-        padding: 14px 16px;
-        font-size: 16px;
-      }
-      .btn, .btn.secondary {
-        padding: 12px 18px;
-        font-size: 15px;
-      }
-    }
   </style>
 {% endblock %}
 
@@ -83,7 +59,6 @@
     </a>
   </div>
 
-  {# ---- 一人ずつの情報カード（平均 / 1位 / 3位 / 曲数） + 全体カード ---- #}
   {% set users_fixed = ['まつりく','えす','こんけあ'] %}
   <div class="user-cards">
     {% for uname in users_fixed %}
@@ -97,7 +72,7 @@
           <a class="name-link" href="{{ url_for('user_history', username=uname) }}">{{ uname }}</a>
         </div>
         <div class="stats">
-          <div class="pill acc">平均 <span class="score">{{ '%.2f'|format(user_averages.get(uname, 0)) }}</span></div>
+          <div class="pill acc">平均 <span class="score">{{ '%.3f'|format(user_averages.get(uname, 0)) }}</span></div>
           <div class="pill cyan">1位 <span class="score">{{ first_place_counts.get(uname, 0) }}</span></div>
           <a class="pill name-link" href="{{ url_for('user_third_rank', username=uname) }}">3位 <span class="score">{{ third_place_counts.get(uname, 0) }}</span></a>
           <div class="pill gray">曲数 <span class="score">{{ user_total_records.get(uname, 0) }}</span></div>
@@ -105,7 +80,7 @@
       </div>
     {% endfor %}
 
-    {# 全体の履歴カード（ユーザーと同列） #}
+    {# 全体の履歴カード #}
     <div class="user-card card">
       <div class="name">
         <span class="dot" style="background:linear-gradient(180deg,#f59e0b,#b45309)"></span>
@@ -117,7 +92,6 @@
     </div>
   </div>
 
-  <!-- 検索フォーム（曲名・歌手名。並び替えは固定：1位スコア降順） -->
   <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
     <div class="grid cols-3">
       <div>
@@ -175,12 +149,8 @@
                       {{ record["ユーザー"] }}
                     </a>
                   </td>
-                  <td><span class="score">{{ '%.2f'|format(record["スコア"]) }}</span></td>
-                  <td>
-                    {% if record["日付"] %}
-                      {{ record["日付"].strftime('%Y-%m-%d') }}
-                    {% endif %}
-                  </td>
+                  <td><span class="score">{{ '%.3f'|format(record["スコア"]) }}</span></td>
+                  <td>{{ record["日付"]|fmtdate }}</td>
                 </tr>
               {% endfor %}
             </tbody>

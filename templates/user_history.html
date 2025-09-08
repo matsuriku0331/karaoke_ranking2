@@ -4,18 +4,11 @@
 {% block head %}
   <style>
     .table-wrap{overflow-x:auto}
-    .col-date{min-width: 140px;}
-    @media (max-width:720px){ .col-date{min-width: 160px;} }
+    .col-date{min-width: 180px;}
+    @media (max-width:720px){ .col-date{min-width: 190px;} }
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
     .controls .field{min-width:200px}
     @media (max-width:640px){ .controls .field{min-width:unset; flex:1} }
-
-    /* スコア強調 */
-    .score{
-      font-weight:900;
-      letter-spacing:.2px;
-      text-shadow:0 0 12px rgba(34,197,94,.18);
-    }
   </style>
 {% endblock %}
 
@@ -69,9 +62,9 @@
           {% for r in records %}
             <tr>
               <td>{{ r["曲名"] }}</td>
-              <td><span class="score">{{ '%.2f'|format(r["スコア"]) }}</span></td>
+              <td><span class="score">{{ '%.3f'|format(r["スコア"]) }}</span></td>
               <td>{{ r["歌手名"] }}</td>
-              <td>{% if r["日付"] %}{{ r["日付"].strftime('%Y-%m-%d') }}{% endif %}</td>
+              <td>{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
             </tr>
           {% endfor %}
         </tbody>
