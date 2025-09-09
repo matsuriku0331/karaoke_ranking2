@@ -4,9 +4,10 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import UniqueConstraint
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import UniqueConstraint, text
+from sqlalchemy.exc import IntegrityError, OperationalError
 from datetime import datetime
+from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 
 # ---- Flask + DB setup ----
 app = Flask(__name__)
@@ -15,14 +16,34 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", None)  # 管理者用共有パスワード
 
-# Render の接続文字列（postgres:// → postgresql:// 置換）
+# Render の接続文字列（postgres:// → postgresql:// 置換 & sslmode=require 付与）
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:
-    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    dburl = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    # sslmode=require がついていない場合は付与
+    try:
+        parsed = urlparse(dburl)
+        q = dict(parse_qsl(parsed.query))
+        if "sslmode" not in q:
+            q["sslmode"] = "require"
+        dburl = urlunparse(parsed._replace(query=urlencode(q)))
+    except Exception:
+        # パースに失敗してもそのまま使う
+        pass
+    app.config["SQLALCHEMY_DATABASE_URI"] = dburl
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///scores.db"
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# ★ コネクションプールの堅牢化
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,   # 死活監視で切れた接続を自動再取得
+    "pool_recycle": 280,     # 300秒未満でリサイクル（LB等のアイドル切断対策）
+    "pool_size": 5,
+    "max_overflow": 10,
+}
+
 db = SQLAlchemy(app)
 
 # ---- DB model ----
@@ -41,6 +62,14 @@ class Score(db.Model):
 
 with app.app_context():
     db.create_all()
+
+# アプリ終了時に確実にセッションを閉じる
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    try:
+        db.session.remove()
+    except Exception:
+        pass
 
 # ---- Jinja フィルタ ----
 @app.template_filter("fmtdate")
@@ -94,7 +123,7 @@ USER_COOKIES = {
 }
 
 # ---- Helpers ----
-def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
+def fetch_damtomo_ai_scores(username, cookies, max_pages=10):
     all_scores = []
     for page in range(1, max_pages + 1):
         params = {"cdmCardNo": cookies.get("scr_cdm", ""), "pageNo": page, "detailFlg": 0}
@@ -136,6 +165,22 @@ def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
         df["日付"] = pd.to_datetime(df["日付"], errors="coerce")
     return df
 
+def safe_commit(session_db):
+    """
+    commitでOperationalError(接続切断)が出たときに、1回だけプール破棄→再試行する。
+    """
+    try:
+        session_db.commit()
+    except OperationalError as e:
+        # 接続切断など
+        session_db.rollback()
+        try:
+            db.engine.dispose()  # 既存プールを破棄して新規接続へ
+        except Exception:
+            pass
+        # 再試行
+        session_db.commit()
+
 def insert_scores_from_df(df_new):
     if df_new.empty:
         return 0
@@ -153,24 +198,46 @@ def insert_scores_from_df(df_new):
         score_val = float(r["スコア"])
         date_val = r["日付"].to_pydatetime() if hasattr(r["日付"], "to_pydatetime") else r["日付"]
 
-        exists = session_db.query(Score).filter_by(song=song, user=user, date=date_val).first()
+        # 既存チェック
+        try:
+            exists = session_db.query(Score).filter_by(song=song, user=user, date=date_val).first()
+        except OperationalError:
+            session_db.rollback()
+            try:
+                db.engine.dispose()
+            except Exception:
+                pass
+            exists = session_db.query(Score).filter_by(song=song, user=user, date=date_val).first()
+
         if exists:
             continue
 
         s = Score(song=song, singer=singer, user=user, score=score_val, date=date_val)
         session_db.add(s)
         try:
-            session_db.commit()
+            safe_commit(session_db)
             inserted += 1
         except IntegrityError:
             session_db.rollback()
+        except OperationalError as e:
+            # 2回目の失敗は諦めて次レコードへ
+            session_db.rollback()
+            print(f"[insert] OperationalError after retry {song}/{user}/{date_val}: {e}")
         except Exception as e:
             session_db.rollback()
             print(f"[insert] unexpected error inserting {song}/{user}/{date_val}: {e}")
     return inserted
 
 def df_from_db():
-    rows = db.session.query(Score).all()
+    try:
+        rows = db.session.query(Score).all()
+    except OperationalError:
+        db.session.rollback()
+        try:
+            db.engine.dispose()
+        except Exception:
+            pass
+        rows = db.session.query(Score).all()
     data = [{"曲名": r.song, "歌手名": r.singer, "ユーザー": r.user, "スコア": r.score, "日付": r.date} for r in rows]
     if not data:
         return pd.DataFrame(columns=["曲名", "歌手名", "ユーザー", "スコア", "日付"])
@@ -285,7 +352,7 @@ def update_ranking():
         if not df_new.empty:
             inserted = insert_scores_from_df(df_new)
             total_inserted += inserted
-            print(f"[update] {user}: inserted {inserted} rows")
+            print(f("[update] {user}: inserted {inserted} rows"))
     return redirect(url_for("ranking", song=song_query, singer=singer_query))
 
 # ---- User History ----
@@ -294,7 +361,7 @@ def user_history(username):
     sort = request.args.get("sort", "recent")
     song_query = request.args.get("song", "").strip()
     singer_query = request.args.get("singer", "").strip()
-    # ★ ページネーション
+    # ページネーション
     try:
         page = max(int(request.args.get("page", 1)), 1)
     except Exception:
@@ -364,7 +431,7 @@ def all_history():
     sort = request.args.get("sort", "recent")
     song_query = request.args.get("song", "").strip()
     singer_query = request.args.get("singer", "").strip()
-    # ★ ページネーション
+    # ページネーション
     try:
         page = max(int(request.args.get("page", 1)), 1)
     except Exception:
@@ -453,11 +520,14 @@ def admin_add():
     s = Score(song=song, singer=singer, user=user, score=score_val, date=date_val)
     db.session.add(s)
     try:
-        db.session.commit()
+        safe_commit(db.session)
         flash("1件追加しました。", "info")
     except IntegrityError:
         db.session.rollback()
         flash("同じ（曲名・ユーザー・日時）のデータが既に存在します。", "error")
+    except OperationalError as e:
+        db.session.rollback()
+        flash(f"接続エラーのため追加に失敗しました: {e}", "error")
     except Exception as e:
         db.session.rollback()
         flash(f"予期せぬエラー: {e}", "error")
@@ -479,14 +549,23 @@ def admin_delete():
         flash("日時の形式が不正です。YYYY-MM-DD または YYYY-MM-DDTHH:MM で入力してください。", "error")
         return redirect(url_for("admin"))
 
-    row = Score.query.filter_by(song=song, user=user, date=date_val).first()
+    try:
+        row = Score.query.filter_by(song=song, user=user, date=date_val).first()
+    except OperationalError:
+        db.session.rollback()
+        try:
+            db.engine.dispose()
+        except Exception:
+            pass
+        row = Score.query.filter_by(song=song, user=user, date=date_val).first()
+
     if not row:
         flash("該当レコードが見つかりません（曲名・ユーザー・日時の完全一致で検索）。", "error")
         return redirect(url_for("admin"))
 
     try:
         db.session.delete(row)
-        db.session.commit()
+        safe_commit(db.session)
         flash("1件削除しました。", "info")
     except Exception as e:
         db.session.rollback()
