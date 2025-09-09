@@ -3,36 +3,45 @@
 
 {% block head %}
   <style>
-    .table-wrap{overflow-x:auto}
+    .table-wrap{
+      overflow-x:auto;
+      -webkit-overflow-scrolling: touch; /* iOS慣性スクロール */
+    }
 
-    /* 固定レイアウト＋列幅を%で明示（曲名が消えないように） */
+    /* ★ テーブルに最小幅を持たせて横スクロールを必ず出す */
     table{
       width:100%;
+      min-width: 960px;              /* 曲名520 + スコア120 + ユーザー140 + 日付180 = 960 */
       border-collapse:separate;
       border-spacing:0 8px;
-      table-layout:fixed;
+      table-layout:fixed;            /* 列幅を固定解釈 */
     }
+
     thead th, tbody td{
-      vertical-align:middle; padding:10px 12px;
-      overflow:hidden;          /* 重なり防止 */
+      vertical-align:middle;
+      padding:10px 12px;
+      overflow:hidden;               /* はみ出しカット */
       text-overflow:ellipsis;
-      white-space:nowrap;
+      /* white-space はここでは指定しない。必要箇所だけ個別に付ける */
     }
 
-    /* 列幅（歌手名は無し） */
-    .col-title{ width:55%; text-align:left; }
-    .col-score{ width:15%; text-align:right; }
-    .col-user { width:15%; text-align:left; }
-    .col-date { width:15%; text-align:left; }
+    /* 列ごとの最小幅を確保（重なり防止） */
+    .col-title { min-width:520px; text-align:left; } /* 余り幅はここへ */
+    .col-score { min-width:120px; text-align:right; }
+    .col-user  { min-width:140px; text-align:left; }
+    .col-date  { min-width:180px; text-align:left; }
 
-    /* 曲名をブロック化して確実に表示（省略は…） */
+    /* 曲名は1行省略（確実にブロック化） */
     .truncate{
       display:block; width:100%;
-      overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
+
+    /* スコアだけは常に1行 */
     .nowrap{ white-space:nowrap; }
     .score.compact{ padding:2px 6px; }
 
+    /* ユーザーチップ & 行の色バー（従来通り） */
     .uname-chip{
       display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700;
       border:1px solid var(--border);
@@ -40,12 +49,11 @@
     .chip-green { background:rgba(34,197,94,.10);  border-color:rgba(34,197,94,.35);  color:#86efac }
     .chip-cyan  { background:rgba(6,182,212,.10);  border-color:rgba(6,182,212,.35);  color:#67e8f9 }
     .chip-violet{ background:rgba(167,139,250,.10);border-color:rgba(167,139,250,.35);color:#c4b5fd }
-
     .bar-green { box-shadow: inset 3px 0 0 #22c55e; }
     .bar-cyan  { box-shadow: inset 3px 0 0 #06b6d4; }
     .bar-violet{ box-shadow: inset 3px 0 0 #a78bfa; }
 
-    /* 検索欄 */
+    /* 検索欄（そのまま大きめ） */
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
     .controls .field{min-width:240px; flex:1}
     label{font-size:12px}
@@ -53,16 +61,14 @@
       width:100%; padding:14px 16px; font-size:16px; min-height:46px;
     }
 
+    /* ページネーション */
     .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; flex-wrap:wrap; }
     .pager .info{ color:var(--muted); font-size:12px; }
 
-    /* モバイル：日付幅を少し削って曲名を確保 */
+    /* モバイルでも列は潰さず、横スクロールで見せる */
     @media (max-width: 640px){
       thead th, tbody td { padding:8px 10px; font-size:14px; }
-      .col-title{ width:58%; }
-      .col-score{ width:17%; }
-      .col-user { width:13%; }
-      .col-date { width:12%; } /* 横スクロール前提でコンパクト */
+      /* min-width はそのまま。横スクロールで対応 */
     }
   </style>
 {% endblock %}
@@ -125,7 +131,7 @@
             {% set chip = 'chip-green' if u=='まつりく' else ('chip-cyan' if u=='えす' else 'chip-violet') %}
             <tr class="{{ bar }}">
               <td><span class="truncate">{{ r["曲名"] }}</span></td>
-              <td class="nowrap" style="text-align:right;"><span class="score compact">{{ '%.3f'|format(r["スコア"]) }}</span></td>
+              <td class="td-score"><span class="score compact nowrap">{{ '%.3f'|format(r["スコア"]) }}</span></td>
               <td><span class="uname-chip {{ chip }}">{{ u }}</span></td>
               <td>{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
             </tr>

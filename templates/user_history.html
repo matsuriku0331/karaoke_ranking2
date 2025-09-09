@@ -3,28 +3,35 @@
 
 {% block head %}
   <style>
-    .table-wrap{overflow-x:auto}
+    .table-wrap{
+      overflow-x:auto;
+      -webkit-overflow-scrolling: touch;
+    }
 
+    /* ★ ユーザー履歴も最小幅を確保して横スクロールを出す */
     table{
       width:100%;
+      min-width: 1080px;             /* 曲名520 + スコア120 + 歌手名220 + 日付220 の目安 */
       border-collapse:separate;
       border-spacing:0 8px;
       table-layout:fixed;
     }
+
     thead th, tbody td{
-      vertical-align:middle; padding:10px 12px;
-      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      vertical-align:middle;
+      padding:10px 12px;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
-    /* 列幅（歌手名あり） */
-    .col-title { width:50%; text-align:left; }
-    .col-score { width:18%; text-align:right; }
-    .col-singer{ width:16%; text-align:left; }
-    .col-date  { width:16%; text-align:left; }
+    .col-title { min-width:520px; text-align:left; }
+    .col-score { min-width:120px; text-align:right; }
+    .col-singer{ min-width:220px; text-align:left; }
+    .col-date  { min-width:220px; text-align:left; }
 
     .truncate{
       display:block; width:100%;
-      overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
     .nowrap{ white-space:nowrap; }
     .score.compact{ padding:2px 6px; }
@@ -40,13 +47,9 @@
     .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; flex-wrap:wrap; }
     .pager .info{ color:var(--muted); font-size:12px; }
 
-    /* モバイル：曲名とスコアを優先確保 */
     @media (max-width: 640px){
       thead th, tbody td { padding:8px 10px; font-size:14px; }
-      .col-title { width:54%; }
-      .col-score { width:20%; }
-      .col-singer{ width:13%; } /* 横スクロールで見る想定 */
-      .col-date  { width:13%; }
+      /* min-width は維持。横スクロールで対応 */
     }
   </style>
 {% endblock %}
