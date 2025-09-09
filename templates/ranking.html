@@ -7,65 +7,31 @@
     .col-date{min-width: 140px;}
     @media (max-width:720px){ .col-date{min-width: 160px;} }
 
-    /* 個人カード */
     .user-cards{
       display:grid; gap:12px;
-      grid-template-columns: repeat(4, 1fr);   /* 全体カードを追加するため4列 */
+      grid-template-columns: repeat(4, 1fr);
       margin-bottom:16px;
     }
-    @media (max-width:1120px){
-      .user-cards{grid-template-columns: 1fr 1fr 1fr}
-    }
-    @media (max-width:920px){
-      .user-cards{grid-template-columns: 1fr 1fr}
-    }
-    @media (max-width:640px){
-      .user-cards{grid-template-columns: 1fr}
-    }
-    .user-card .name{
-      display:flex; align-items:center; gap:10px;
-      font-weight:800; letter-spacing:.3px; margin-bottom:6px;
-    }
-    .user-card .name .dot{
-      width:10px; height:10px; border-radius:999px;
-      box-shadow:0 0 16px rgba(34,197,94,.35);
-    }
-    .user-card .stats{
-      display:flex; gap:8px; flex-wrap:wrap;
-    }
-    .pill{
-      padding:8px 10px; border-radius:12px; font-weight:700; font-size:13px;
-      background:rgba(17,24,39,.66); border:1px solid var(--border);
-    }
+    @media (max-width:1120px){ .user-cards{grid-template-columns: 1fr 1fr 1fr} }
+    @media (max-width:920px){ .user-cards{grid-template-columns: 1fr 1fr} }
+    @media (max-width:640px){ .user-cards{grid-template-columns: 1fr} }
+    .user-card .name{ display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px; margin-bottom:6px; }
+    .user-card .name .dot{ width:10px; height:10px; border-radius:999px; box-shadow:0 0 16px rgba(34,197,94,.35); }
+    .user-card .stats{ display:flex; gap:8px; flex-wrap:wrap; }
+    .pill{ padding:8px 10px; border-radius:12px; font-weight:700; font-size:13px; background:rgba(17,24,39,.66); border:1px solid var(--border); }
     .pill.acc{background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.35); color:#86efac}
     .pill.cyan{background:rgba(6,182,212,.10); border-color:rgba(6,182,212,.35); color:#67e8f9}
     .pill.gray{background:rgba(148,163,184,.08); border-color:rgba(148,163,184,.30); color:#cbd5e1}
 
-    /* 入力欄のサイズ調整（スマホ押しやすさ） */
-    input[type="text"], select {
-      padding: 12px 14px;
-      font-size: 15px;
-    }
+    input[type="text"], select { padding: 12px 14px; font-size: 15px; }
     .name-link{ color:var(--text); text-decoration:none; }
     .name-link:hover{ text-decoration:underline; }
 
-    /* スコア強調（全画面共通トーン） */
-    .score{
-      font-weight:900;
-      letter-spacing:.2px;
-      text-shadow:0 0 12px rgba(34,197,94,.18);
-    }
+    .score{ font-weight:900; letter-spacing:.2px; text-shadow:0 0 12px rgba(34,197,94,.18); }
 
-    /* スマホ時にさらに大きく */
     @media (max-width: 640px) {
-      input[type="text"], select {
-        padding: 14px 16px;
-        font-size: 16px;
-      }
-      .btn, .btn.secondary {
-        padding: 12px 18px;
-        font-size: 15px;
-      }
+      input[type="text"], select { padding: 14px 16px; font-size: 16px; }
+      .btn, .btn.secondary { padding: 12px 18px; font-size: 15px; }
     }
   </style>
 {% endblock %}
@@ -78,12 +44,9 @@
 {% block content %}
   <div class="h1" style="display:flex; align-items:center; justify-content:space-between;">
     <span>曲別ランキング</span>
-    <a href="{{ url_for('home') }}" class="btn secondary" style="font-size:14px; padding:6px 12px;">
-      ホームに戻る
-    </a>
+    <a href="{{ url_for('home') }}" class="btn secondary" style="font-size:14px; padding:6px 12px;">ホームに戻る</a>
   </div>
 
-  {# ---- 一人ずつの情報カード（平均 / 1位 / 3位 / 曲数） + 全体カード ---- #}
   {% set users_fixed = ['まつりく','えす','こんけあ'] %}
   <div class="user-cards">
     {% for uname in users_fixed %}
@@ -104,8 +67,6 @@
         </div>
       </div>
     {% endfor %}
-
-    {# 全体の履歴カード（ユーザーと同列） #}
     <div class="user-card card">
       <div class="name">
         <span class="dot" style="background:linear-gradient(180deg,#f59e0b,#b45309)"></span>
@@ -117,7 +78,6 @@
     </div>
   </div>
 
-  <!-- 検索フォーム（曲名・歌手名。並び替えは固定：1位スコア降順） -->
   <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
     <div class="grid cols-3">
       <div>
@@ -176,11 +136,7 @@
                     </a>
                   </td>
                   <td><span class="score">{{ '%.2f'|format(record["スコア"]) }}</span></td>
-                  <td>
-                    {% if record["日付"] %}
-                      {{ record["日付"].strftime('%Y-%m-%d') }}
-                    {% endif %}
-                  </td>
+                  <td>{{ record["日付"]|fmtdate }}</td>
                 </tr>
               {% endfor %}
             </tbody>

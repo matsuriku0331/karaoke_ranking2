@@ -6,13 +6,7 @@
     .table-wrap{overflow-x:auto}
     .col-date{min-width: 140px;}
     @media (max-width:720px){ .col-date{min-width: 160px;} }
-
-    /* スコア強調 */
-    .score{
-      font-weight:900;
-      letter-spacing:.2px;
-      text-shadow:0 0 12px rgba(34,197,94,.18);
-    }
+    .score{ font-weight:900; letter-spacing:.2px; text-shadow:0 0 12px rgba(34,197,94,.18); }
   </style>
 {% endblock %}
 
@@ -58,11 +52,7 @@
                   </td>
                   <td>{{ record["ユーザー"] }}</td>
                   <td><span class="score">{{ '%.2f'|format(record["スコア"]) }}</span></td>
-                  <td>
-                    {% if record["日付"] %}
-                      {{ record["日付"].strftime('%Y-%m-%d') }}
-                    {% endif %}
-                  </td>
+                  <td>{{ record["日付"]|fmtdate }}</td>
                 </tr>
               {% endfor %}
             </tbody>

@@ -34,7 +34,6 @@ class Score(db.Model):
     user = db.Column(db.String(200), nullable=False)    # ユーザー名
     score = db.Column(db.Float, nullable=False)         # スコア
     date = db.Column(db.DateTime, nullable=False)       # 日付（日時）
-    # 「曲名・ユーザー・日時（秒まで完全一致）」が同一なら重複としてスキップ
     __table_args__ = (UniqueConstraint('song', 'user', 'date', name='_song_user_date_uc'),)
 
     def to_record(self):
@@ -42,6 +41,29 @@ class Score(db.Model):
 
 with app.app_context():
     db.create_all()
+
+# ---- Jinja フィルタ（ここが今回のポイント）----
+@app.template_filter("fmtdate")
+def fmtdate(value, fmt="%Y-%m-%d"):
+    """
+    日付を安全に 'YYYY-MM-DD' へ。None/文字列/Datetime どれでもOKにする。
+    """
+    if value is None:
+        return ""
+    # すでに datetime
+    if hasattr(value, "strftime"):
+        try:
+            return value.strftime(fmt)
+        except Exception:
+            pass
+    # 文字列などは parse を試みる
+    try:
+        dt = datetime.fromisoformat(str(value))
+        return dt.strftime(fmt)
+    except Exception:
+        # どうしても無理なら先頭10文字だけ（YYYY-MM-DD 相当）を返す
+        s = str(value)
+        return s[:10]
 
 # ---- Config / constants ----
 AI_SCORE_URL = "https://www.clubdam.com/app/damtomo/scoring/GetScoringAiListXML.do"
@@ -76,9 +98,6 @@ USER_COOKIES = {
 
 # ---- Helpers ----
 def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
-    """
-    DAM★とものAIスコア履歴を複数ページ取得。戻り値は DataFrame ["曲名","歌手名","ユーザー","スコア","日付"]
-    """
     all_scores = []
     for page in range(1, max_pages + 1):
         params = {"cdmCardNo": cookies.get("scr_cdm", ""), "pageNo": page, "detailFlg": 0}
@@ -121,9 +140,6 @@ def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
     return df
 
 def insert_scores_from_df(df_new):
-    """
-    取り込んだDFをDBへ。重複判定は (song, user, date) 完全一致のみスキップ。
-    """
     if df_new.empty:
         return 0
     df_new = df_new.copy()
@@ -164,12 +180,11 @@ def df_from_db():
     return pd.DataFrame(data)
 
 def parse_datetime_flexible(s: str):
-    """'YYYY-MM-DD', 'YYYY-MM-DD HH:MM', 'YYYY-MM-DDTHH:MM' など柔軟に受け入れる"""
     if not s:
         return None
     s = s.strip()
     try:
-        return datetime.fromisoformat(s)  # 'YYYY-MM-DD' も 'YYYY-MM-DDTHH:MM' もOK
+        return datetime.fromisoformat(s)
     except Exception:
         pass
     for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d"):
@@ -197,30 +212,26 @@ def home():
 
 @app.route("/ranking", methods=["GET"])
 def ranking():
-    # 検索パラメータ
     song_query = request.args.get("song", "")
     singer_query = request.args.get("singer", "")
 
     df_all = df_from_db()
 
-    # ---- 上部統計：平均点・1位数・3位数・歌唱回数（人別） ----
     user_averages = {}
     first_place_counts = {}
     third_place_counts = {}
-    user_total_records = {}   # 人ごとの総レコード数（歌唱回数）
+    user_total_records = {}
 
     if not df_all.empty:
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
         user_total_records = df_all.groupby("ユーザー").size().to_dict()
 
-    # 絞り込み（部分一致, 大文字小文字無視）
     filtered = df_all.copy()
     if song_query:
         filtered = filtered[filtered["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
     if singer_query:
         filtered = filtered[filtered["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
 
-    # 最高点「達成時」の行抽出（同点は最初に達成）
     best_rows = pd.DataFrame(columns=["曲名", "ユーザー", "歌手名", "スコア", "日付"])
     if not filtered.empty:
         ordered = filtered.sort_values(["スコア", "日付"], ascending=[False, True])
@@ -229,7 +240,6 @@ def ranking():
                    .first()[["曲名", "ユーザー", "歌手名", "スコア", "日付"]]
         )
 
-    # 曲ごとTop3 → 1位スコア降順で並べ替え & 1位/3位カウント
     ranking_list = []
     first_place_counts = {}
     third_place_counts = {}
@@ -245,8 +255,6 @@ def ranking():
                 "records": top3,
                 "singer": g_sorted.iloc[0]["歌手名"]
             })
-
-            # 順位ごとのカウント（同点は先達成者が優先）
             for idx, rec in enumerate(top3, start=1):
                 u = rec["ユーザー"]
                 if idx == 1:
@@ -269,11 +277,8 @@ def ranking():
 
 @app.route("/update_ranking", methods=["POST"])
 def update_ranking():
-    # 検索条件保持（フォームの hidden から）
     song_query = request.form.get("song", "")
     singer_query = request.form.get("singer", "")
-
-    # 登録ユーザー分を取得して DB に挿入（重複は一意制約でスキップ）
     total_inserted = 0
     for user, cookies in USER_COOKIES.items():
         if not cookies.get("scr_cdm"):
@@ -283,59 +288,40 @@ def update_ranking():
             inserted = insert_scores_from_df(df_new)
             total_inserted += inserted
             print(f"[update] {user}: inserted {inserted} rows")
-
-    # 集計は /ranking に任せる（検索条件を付けてリダイレクト）
     return redirect(url_for("ranking", song=song_query, singer=singer_query))
 
-# ---- User History (public) ----
+# ---- User History ----
 @app.route("/user/<username>", methods=["GET"])
 def user_history(username):
-    # 並び替え：デフォルトは「最近」
-    sort = request.args.get("sort", "recent")  # score | recent | oldest | score_low
+    sort = request.args.get("sort", "recent")
     song_query = request.args.get("song", "").strip()
     singer_query = request.args.get("singer", "").strip()
 
     df = df_from_db()
     if df.empty:
-        records = []
-        total = 0
+        records, total = [], 0
     else:
         df = df[df["ユーザー"] == username]
-
         if song_query:
             df = df[df["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
         if singer_query:
             df = df[df["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
-
         if sort == "recent":
             df = df.sort_values("日付", ascending=False)
         elif sort == "oldest":
             df = df.sort_values("日付", ascending=True)
         elif sort == "score_low":
             df = df.sort_values(["スコア", "日付"], ascending=[True, True])
-        else:  # score（高い順）
+        else:
             df = df.sort_values(["スコア", "日付"], ascending=[False, True])
-
         records = df.to_dict(orient="records")
         total = len(df)
+    return render_template("user_history.html",
+                           username=username, records=records, total=total,
+                           sort=sort, song_query=song_query, singer_query=singer_query)
 
-    return render_template(
-        "user_history.html",
-        username=username,
-        records=records,
-        total=total,
-        sort=sort,
-        song_query=song_query,
-        singer_query=singer_query,
-    )
-
-# ---- Third-place list per user (Top3カードをランキングと同じUIで表示) ----
 @app.route("/user/<username>/thirds", methods=["GET"])
 def user_third_rank(username):
-    """
-    そのユーザーが「曲別ランキングで3位」の曲一覧を、
-    ランキングと同じTop3テーブルのカードで表示する。
-    """
     df_all = df_from_db()
     ranking_cards = []
     if not df_all.empty:
@@ -353,51 +339,40 @@ def user_third_rank(username):
                     "singer": g_sorted.iloc[0]["歌手名"],
                     "records": top3_df.to_dict(orient="records")
                 })
-
-    # 表示順は曲別ランキングの並びに近づけるため、1位スコア降順で
     ranking_cards.sort(key=lambda x: x["records"][0]["スコア"] if x["records"] else 0, reverse=True)
-
     return render_template("user_third.html", username=username, ranking_cards=ranking_cards)
 
-# ---- All users history (3人合算) ----
+# ---- All users history ----
 @app.route("/history/all", methods=["GET"])
 def all_history():
-    sort = request.args.get("sort", "recent")  # score | recent | oldest | score_low
+    sort = request.args.get("sort", "recent")
     song_query = request.args.get("song", "").strip()
     singer_query = request.args.get("singer", "").strip()
 
     df = df_from_db()
     if df.empty:
-        records = []
-        total = 0
+        records, total = [], 0
     else:
         if song_query:
             df = df[df["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
         if singer_query:
             df = df[df["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
-
         if sort == "recent":
             df = df.sort_values("日付", ascending=False)
         elif sort == "oldest":
             df = df.sort_values("日付", ascending=True)
         elif sort == "score_low":
             df = df.sort_values(["スコア", "日付"], ascending=[True, True])
-        else:  # score（高い順）
+        else:
             df = df.sort_values(["スコア", "日付"], ascending=[False, True])
-
         records = df.to_dict(orient="records")
         total = len(df)
 
-    return render_template(
-        "all_history.html",
-        records=records,
-        total=total,
-        sort=sort,
-        song_query=song_query,
-        singer_query=singer_query,
-    )
+    return render_template("all_history.html",
+                           records=records, total=total, sort=sort,
+                           song_query=song_query, singer_query=singer_query)
 
-# ---- Admin Routes（シンプル版：追加＆単件削除のみ） ----
+# ---- Admin ----
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
@@ -415,7 +390,6 @@ def admin_login():
 @app.route("/admin", methods=["GET"])
 @admin_required
 def admin():
-    # 追加＆削除フォームだけの管理ページ
     return render_template("admin.html")
 
 @app.route("/admin/add", methods=["POST"])
@@ -455,16 +429,11 @@ def admin_add():
     except Exception as e:
         db.session.rollback()
         flash(f"予期せぬエラー: {e}", "error")
-
     return redirect(url_for("admin"))
 
 @app.route("/admin/delete", methods=["POST"])
 @admin_required
 def admin_delete():
-    """
-    曲名・ユーザー・日時の完全一致で1件削除。
-    （同じ曲・同じ日でも時間が違えば別データ → 日時まで一致させて特定）
-    """
     song = (request.form.get("del_song") or "").strip()
     user = (request.form.get("del_user") or "").strip()
     date_str = (request.form.get("del_date") or "").strip()
@@ -490,7 +459,6 @@ def admin_delete():
     except Exception as e:
         db.session.rollback()
         flash(f"削除でエラーが発生しました: {e}", "error")
-
     return redirect(url_for("admin"))
 
 # ---- 起動 ----
