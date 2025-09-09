@@ -5,13 +5,18 @@
   <style>
     .table-wrap{overflow-x:auto}
 
-    table{ width:100%; border-collapse:separate; border-spacing:0 8px; table-layout:fixed; }
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0 8px;
+      table-layout:fixed;
+    }
     th, td { vertical-align:middle; padding:10px 12px; }
 
-    .col-title { min-width:220px; }
-    .col-score { min-width:120px; }
-    .col-singer{ min-width:160px; }
-    .col-date  { min-width:160px; }
+    .col-title { width:auto; min-width:240px; } /* 余剰幅は曲名に */
+    .col-score { width:120px; }                 /* スコア固定幅 */
+    .col-singer{ width:160px; }
+    .col-date  { width:160px; }
 
     /* 検索欄：常にフル幅＆大きめ */
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
@@ -21,16 +26,17 @@
       width:100%; padding:14px 16px; font-size:16px; min-height:46px;
     }
 
-    /* 曲名・スコアは1行固定（省略記号で省略） */
-    .nowrap{ white-space:nowrap; }
+    /* 曲名は1行固定（セル幅に合わせて省略） */
     .truncate{
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block;
-      max-width: 420px;
+      display:block;
+      width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
-    @media (max-width: 1024px){ .truncate{ max-width: 300px; } }
-    @media (max-width: 768px) { .truncate{ max-width: 230px; } }
-    @media (max-width: 480px) { .truncate{ max-width: 165px; } }
 
+    /* スコアは必ず1行 */
+    .nowrap{ white-space:nowrap; }
     .score.compact{ padding:2px 6px; }
 
     /* ページネーション */
@@ -40,13 +46,10 @@
     /* モバイル微調整 */
     @media (max-width: 640px){
       th, td { padding:8px 10px; font-size:14px; }
-      .col-title{ min-width:200px; }
-      .col-score{ min-width:110px; }
-      .col-singer{ min-width:150px; }
-      .col-date  { min-width:150px; }
-    }
-    @media (max-width: 380px){
-      .truncate{ max-width: 150px; }
+      .col-title{ min-width:220px; }
+      .col-score{ width:110px; }
+      .col-singer{ width:150px; }
+      .col-date { width:150px; }
     }
   </style>
 {% endblock %}
@@ -110,8 +113,8 @@
             <tr>
               <td><span class="truncate">{{ r["曲名"] }}</span></td>
               <td class="nowrap"><span class="score compact">{{ '%.3f'|format(r["スコア"]) }}</span></td>
-              <td class="col-singer">{{ r["歌手名"] }}</td>
-              <td class="col-date">{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
+              <td>{{ r["歌手名"] }}</td>
+              <td>{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
             </tr>
           {% endfor %}
         </tbody>

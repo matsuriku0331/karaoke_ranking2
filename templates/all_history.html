@@ -5,16 +5,20 @@
   <style>
     .table-wrap{overflow-x:auto}
 
-    /* テーブルを固定レイアウトにして折返し制御 */
-    table{ width:100%; border-collapse:separate; border-spacing:0 8px; table-layout:fixed; }
+    /* テーブルを固定レイアウトにして列幅を管理 */
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0 8px;
+      table-layout:fixed;
+    }
     th, td { vertical-align:middle; padding:10px 12px; }
 
-    /* 列幅：曲名/スコア/ユーザーは見やすく、歌手名/日付は横スクロールで見える程度 */
-    .col-title { min-width:220px; }
-    .col-score { min-width:120px; }
-    .col-user  { min-width:130px; }
-    .col-singer{ min-width:160px; }
-    .col-date  { min-width:160px; }
+    /* 列幅：曲名/スコア/ユーザー/日付（歌手名は削除） */
+    .col-title { width:auto; min-width:240px; }  /* 余った幅はここへ */
+    .col-score { width:120px; }                  /* スコアは固定幅 */
+    .col-user  { width:130px; }
+    .col-date  { width:160px; }
 
     /* 検索欄：常にフル幅＆タップしやすいサイズ */
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
@@ -24,17 +28,17 @@
       width:100%; padding:14px 16px; font-size:16px; min-height:46px;
     }
 
-    /* 曲名・スコアは1行固定（省略記号で省略） */
-    .nowrap{ white-space:nowrap; }
+    /* 曲名は1行固定（セル幅に合わせて省略） */
     .truncate{
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block;
-      max-width: 420px;
+      display:block;
+      width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
-    @media (max-width: 1024px){ .truncate{ max-width: 300px; } }
-    @media (max-width: 768px) { .truncate{ max-width: 230px; } }
-    @media (max-width: 480px) { .truncate{ max-width: 165px; } }
 
-    /* スコアをコンパクト表示（枠は残す） */
+    /* スコアはコンパクト＋必ず1行 */
+    .nowrap{ white-space:nowrap; }
     .score.compact{ padding:2px 6px; }
 
     /* ユーザーチップ */
@@ -58,16 +62,11 @@
     /* モバイル微調整 */
     @media (max-width: 640px){
       th, td { padding:8px 10px; font-size:14px; }
-      label{ font-size:12px; }
       input[type="text"], select { font-size:16px; min-height:46px; }
-      .col-title{ min-width:200px; }
-      .col-score{ min-width:110px; }
-      .col-user { min-width:120px; }
-      .col-singer{ min-width:150px; }
-      .col-date  { min-width:150px; }
-    }
-    @media (max-width: 380px){
-      .truncate{ max-width: 150px; }
+      .col-title{ min-width:220px; }
+      .col-score{ width:110px; }
+      .col-user { width:120px; }
+      .col-date { width:150px; }
     }
   </style>
 {% endblock %}
@@ -120,7 +119,6 @@
             <th class="col-title">曲名</th>
             <th class="col-score">スコア</th>
             <th class="col-user">ユーザー名</th>
-            <th class="col-singer">歌手名</th>
             <th class="col-date">日付</th>
           </tr>
         </thead>
@@ -133,8 +131,7 @@
               <td><span class="truncate">{{ r["曲名"] }}</span></td>
               <td class="nowrap"><span class="score compact">{{ '%.3f'|format(r["スコア"]) }}</span></td>
               <td><span class="uname-chip {{ chip }}">{{ u }}</span></td>
-              <td class="col-singer">{{ r["歌手名"] }}</td>
-              <td class="col-date">{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
+              <td>{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
             </tr>
           {% endfor %}
         </tbody>
