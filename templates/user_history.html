@@ -11,12 +11,25 @@
       border-spacing:0 8px;
       table-layout:fixed;
     }
-    th, td { vertical-align:middle; padding:10px 12px; }
+    thead th, tbody td{
+      vertical-align:middle; padding:10px 12px;
+      overflow:hidden; /* ★ セル側でクリップして重なり防止 */
+    }
 
-    .col-title { width:auto; min-width:240px; } /* 余剰幅は曲名に */
-    .col-score { width:120px; }                 /* スコア固定幅 */
-    .col-singer{ width:160px; }
-    .col-date  { width:160px; }
+    .col-title { text-align:left; }
+    .col-score { text-align:right; }
+    .col-singer{ text-align:left; }
+    .col-date  { text-align:left; }
+
+    .truncate{
+      display:block;
+      width:100%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .nowrap{ white-space:nowrap; }
+    .score.compact{ padding:2px 6px; }
 
     /* 検索欄：常にフル幅＆大きめ */
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
@@ -26,30 +39,12 @@
       width:100%; padding:14px 16px; font-size:16px; min-height:46px;
     }
 
-    /* 曲名は1行固定（セル幅に合わせて省略） */
-    .truncate{
-      display:block;
-      width:100%;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    /* スコアは必ず1行 */
-    .nowrap{ white-space:nowrap; }
-    .score.compact{ padding:2px 6px; }
-
-    /* ページネーション */
     .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; flex-wrap:wrap; }
     .pager .info{ color:var(--muted); font-size:12px; }
 
-    /* モバイル微調整 */
     @media (max-width: 640px){
-      th, td { padding:8px 10px; font-size:14px; }
-      .col-title{ min-width:220px; }
-      .col-score{ width:110px; }
-      .col-singer{ width:150px; }
-      .col-date { width:150px; }
+      thead th, tbody td { padding:8px 10px; font-size:14px; }
+      input[type="text"], select { font-size:16px; min-height:46px; }
     }
   </style>
 {% endblock %}
@@ -100,6 +95,14 @@
   <div class="table-wrap card">
     {% if records %}
       <table>
+        <!-- ★ colgroup で列幅を厳密指定 -->
+        <colgroup>
+          <col style="width:auto; min-width:260px;">  {# 曲名：余りをここへ #}
+          <col style="width:124px;">                  {# スコア #}
+          <col style="width:180px;">                  {# 歌手名 #}
+          <col style="width:180px;">                  {# 日付 #}
+        </colgroup>
+
         <thead>
           <tr>
             <th class="col-title">曲名</th>
