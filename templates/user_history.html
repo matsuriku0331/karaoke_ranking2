@@ -8,10 +8,10 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* ★ ユーザー履歴も最小幅を確保して横スクロールを出す */
+    /* 曲名を短めにして初期表示でスコアが見えるように */
     table{
       width:100%;
-      min-width: 1080px;             /* 曲名520 + スコア120 + 歌手名220 + 日付220 の目安 */
+      min-width: 760px;              /* 220(曲名)+120(スコア)+220(歌手名)+200(日付)=760 */
       border-collapse:separate;
       border-spacing:0 8px;
       table-layout:fixed;
@@ -24,32 +24,27 @@
       text-overflow:ellipsis;
     }
 
-    .col-title { min-width:520px; text-align:left; }
+    .col-title { min-width:220px; text-align:left; }  /* ★短く */
     .col-score { min-width:120px; text-align:right; }
     .col-singer{ min-width:220px; text-align:left; }
-    .col-date  { min-width:220px; text-align:left; }
+    .col-date  { min-width:200px; text-align:left; }
 
-    .truncate{
-      display:block; width:100%;
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
+    .truncate{ display:block; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .nowrap{ white-space:nowrap; }
     .score.compact{ padding:2px 6px; }
 
-    /* 検索欄 */
+    /* 検索・ページネーションは据え置き */
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
     .controls .field{min-width:240px; flex:1}
     label{font-size:12px}
     input[type="text"], select {
       width:100%; padding:14px 16px; font-size:16px; min-height:46px;
     }
-
     .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; flex-wrap:wrap; }
     .pager .info{ color:var(--muted); font-size:12px; }
 
     @media (max-width: 640px){
       thead th, tbody td { padding:8px 10px; font-size:14px; }
-      /* min-width は維持。横スクロールで対応 */
     }
   </style>
 {% endblock %}
