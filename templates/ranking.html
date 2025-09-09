@@ -1,96 +1,13 @@
 {% extends "base.html" %}
 {% block title %}曲別ランキング | 根性カラオキランキング{% endblock %}
 
-{% block head %}
-  <style>
-    .table-wrap{overflow-x:auto}
-    .col-date{min-width: 140px;}
-    @media (max-width:720px){ .col-date{min-width: 160px;} }
-
-    /* 個人カード */
-    .user-cards{
-      display:grid; gap:12px;
-      grid-template-columns: repeat(4, 1fr);   /* 全体カードを追加するため4列 */
-      margin-bottom:16px;
-    }
-    @media (max-width:1120px){
-      .user-cards{grid-template-columns: 1fr 1fr 1fr}
-    }
-    @media (max-width:920px){
-      .user-cards{grid-template-columns: 1fr 1fr}
-    }
-    @media (max-width:640px){
-      .user-cards{grid-template-columns: 1fr}
-    }
-    .user-card .name{
-      display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px; margin-bottom:6px;
-    }
-    .user-card .name .dot{
-      width:10px; height:10px; border-radius:999px;
-      box-shadow:0 0 16px rgba(34,197,94,.35);
-    }
-    .user-card .stats{
-      display:flex; gap:8px; flex-wrap:wrap;
-    }
-    .pill{
-      padding:8px 10px; border-radius:12px; font-weight:700; font-size:13px;
-      background:rgba(17,24,39,.66); border:1px solid var(--border);
-    }
-    .pill.acc{background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.35); color:#86efac}
-    .pill.cyan{background:rgba(6,182,212,.10); border-color:rgba(6,182,212,.35); color:#67e8f9}
-    .pill.gray{background:rgba(148,163,184,.08); border-color:rgba(148,163,184,.30); color:#cbd5e1}
-
-    input[type="text"], select { padding: 12px 14px; font-size: 15px; }
-    .name-link{ color:var(--text); text-decoration:none; }
-    .name-link:hover{ text-decoration:underline; }
-  </style>
-{% endblock %}
-
 {% block update_hidden %}
   <input type="hidden" name="song" value="{{ song_query }}">
   <input type="hidden" name="singer" value="{{ singer_query }}">
 {% endblock %}
 
 {% block content %}
-  <div class="h1" style="display:flex; align-items:center; justify-content:space-between;">
-    <span>曲別ランキング</span>
-    <a href="{{ url_for('home') }}" class="btn secondary" style="font-size:14px; padding:6px 12px;">
-      ホームに戻る
-    </a>
-  </div>
-
-  {% set users_fixed = ['まつりく','えす','こんけあ'] %}
-  <div class="user-cards">
-    {% for uname in users_fixed %}
-      <div class="user-card card">
-        <div class="name">
-          {% set color =
-             'background:linear-gradient(180deg,#22c55e,#16a34a);' if uname=='まつりく' else
-             'background:linear-gradient(180deg,#06b6d4,#0891b2);' if uname=='えす' else
-             'background:linear-gradient(180deg,#a78bfa,#7c3aed);' %}
-          <span class="dot" style="{{ color }}"></span>
-          <a class="name-link" href="{{ url_for('user_history', username=uname) }}">{{ uname }}</a>
-        </div>
-        <div class="stats">
-          <div class="pill acc">平均 <span class="score">{{ '%.3f'|format(user_averages.get(uname, 0)) }}</span></div>
-          <div class="pill cyan">1位 <span class="score">{{ first_place_counts.get(uname, 0) }}</span></div>
-          <a class="pill name-link" href="{{ url_for('user_third_rank', username=uname) }}">3位 <span class="score">{{ third_place_counts.get(uname, 0) }}</span></a>
-          <div class="pill gray">曲数 <span class="score">{{ user_total_records.get(uname, 0) }}</span></div>
-        </div>
-      </div>
-    {% endfor %}
-
-    {# 全体の履歴カード #}
-    <div class="user-card card">
-      <div class="name">
-        <span class="dot" style="background:linear-gradient(180deg,#f59e0b,#b45309)"></span>
-        <a class="name-link" href="{{ url_for('all_history') }}">全体</a>
-      </div>
-      <div class="stats">
-        <a class="pill" href="{{ url_for('all_history') }}">全体の履歴を見る</a>
-      </div>
-    </div>
-  </div>
+  <div class="h1">曲別ランキング</div>
 
   <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
     <div class="grid cols-3">
@@ -102,10 +19,6 @@
         <label for="singer">歌手名検索</label>
         <input type="text" id="singer" name="singer" placeholder="例：三浦たくま" value="{{ singer_query }}">
       </div>
-      <div>
-        <label>並び替え</label>
-        <input type="text" value="1位スコアの降順" readonly>
-      </div>
     </div>
     <div class="row" style="margin-top:12px; justify-content:flex-end">
       <a class="btn secondary" href="{{ url_for('ranking') }}">条件クリア</a>
@@ -113,49 +26,43 @@
     </div>
   </form>
 
-  {% if ranking_list %}
-    {% for item in ranking_list %}
+  {% if ranking_data %}
+    {% for song, records in ranking_data.items() %}
       <div class="song card">
         <div class="song-head">
           <div>
-            <div class="song-title">{{ item.song }}</div>
-            {% if item.singer %}
-              <div class="artist">歌手名：<span class="chip">{{ item.singer }}</span></div>
+            <div class="song-title">{{ song }}</div>
+            {% if records and records[0]["歌手名"] %}
+              <div class="artist">歌手名：<span class="chip">{{ records[0]["歌手名"] }}</span></div>
             {% endif %}
           </div>
           <div class="muted" style="font-size:12px">Top 3</div>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:60px">順位</th>
+              <th style="min-width:140px">ユーザー</th>
+              <th style="min-width:100px">スコア</th>
+              <th style="min-width:160px">日付</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in records %}
               <tr>
-                <th style="width:60px">順位</th>
-                <th style="min-width:140px">ユーザー</th>
-                <th style="min-width:100px">スコア</th>
-                <th class="col-date">日付</th>
+                <td class="rank">
+                  {% if loop.index == 1 %}<span class="medal-1">🥇 1位</span>
+                  {% elif loop.index == 2 %}<span class="medal-2">🥈 2位</span>
+                  {% else %}<span class="medal-3">🥉 3位</span>{% endif %}
+                </td>
+                <td>{{ record["ユーザー"] }}</td>
+                <td><strong style="font-size:1.1em; color:#22c55e">{{ '%.3f'|format(record["スコア"]) }}</strong></td>
+                <td>{{ record["日付"].strftime('%Y-%m-%d %H:%M') if record["日付"] }}</td>
               </tr>
-            </thead>
-            <tbody>
-              {% for record in item.records %}
-                <tr>
-                  <td class="rank">
-                    {% if loop.index == 1 %}<span class="medal-1">🥇 1位</span>
-                    {% elif loop.index == 2 %}<span class="medal-2">🥈 2位</span>
-                    {% else %}<span class="medal-3">🥉 3位</span>{% endif %}
-                  </td>
-                  <td>
-                    <a class="name-link" href="{{ url_for('user_history', username=record['ユーザー']) }}">
-                      {{ record["ユーザー"] }}
-                    </a>
-                  </td>
-                  <td><span class="score">{{ '%.3f'|format(record["スコア"]) }}</span></td>
-                  <td>{{ record["日付"]|fmtdate }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     {% endfor %}
   {% else %}
