@@ -21,11 +21,15 @@
       margin:0;background:linear-gradient(180deg,#0b1023, #0f172a 40%, #0b1023);
       color:var(--text); font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
       -webkit-font-smoothing:antialiased; line-height:1.6;
+      /* ★ ヘッダー固定のため上余白 */
+      padding-top:64px;
     }
     .container{max-width:1000px;margin:0 auto;padding:24px}
+    /* ★ 常時表示の固定ヘッダー */
     header{
-      position:sticky; top:0; z-index:10; backdrop-filter: blur(8px);
-      background:rgba(15,23,42,.6); border-bottom:1px solid var(--border);
+      position:fixed; top:0; left:0; right:0; z-index:100;
+      backdrop-filter: blur(8px);
+      background:rgba(15,23,42,.8); border-bottom:1px solid var(--border);
     }
     .nav{
       display:flex; align-items:center; justify-content:space-between;
@@ -96,11 +100,11 @@
 
     footer{opacity:.7; font-size:12px; text-align:center; padding:30px 0}
 
-    /* ---- スコアをより見やすく（全画面共通） ---- */
+    /* ---- スコアの共通装飾 ---- */
     .score{
       display:inline-block;
       font-weight:900;
-      font-variant-numeric: tabular-nums; /* 桁が揃って読みやすい */
+      font-variant-numeric: tabular-nums;
       letter-spacing:.2px;
       padding:4px 8px;
       border-radius:10px;
@@ -108,7 +112,6 @@
       border:1px solid rgba(34,197,94,.35);
       text-shadow:0 0 14px rgba(34,197,94,.22);
     }
-    /* スマホ時は少し大きめに */
     @media (max-width: 640px) {
       .score{ padding:5px 10px; }
       input[type="text"], select { padding: 14px 16px; font-size: 16px; }
@@ -125,11 +128,15 @@
         <div>カラオケランキング</div>
       </div>
 
-      <!-- ランキング更新ボタン（rankingページで動くよう hidden を後で差し込む） -->
-      <form id="updateForm" method="post" action="{{ url_for('update_ranking') }}">
-        {% block update_hidden %}{% endblock %}
-        <button class="btn" type="submit">ランキング更新</button>
-      </form>
+      <div class="row" style="gap:8px; align-items:center">
+        <!-- ランキング更新 -->
+        <form id="updateForm" method="post" action="{{ url_for('update_ranking') }}">
+          {% block update_hidden %}{% endblock %}
+          <button class="btn" type="submit">ランキング更新</button>
+        </form>
+        <!-- ★ ページ固有のヘッダー右側アクション -->
+        {% block header_extra %}{% endblock %}
+      </div>
     </div>
   </header>
 

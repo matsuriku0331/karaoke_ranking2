@@ -17,6 +17,10 @@
       input[type="text"], select { padding: 14px 16px; font-size: 18px; }
       .btn, .btn.secondary { padding: 12px 18px; font-size: 16px; }
     }
+
+    /* ページネーション */
+    .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; }
+    .pager .info{ color:var(--muted); font-size:12px; }
   </style>
 {% endblock %}
 
@@ -48,6 +52,14 @@
           <option value="oldest" {% if sort=='oldest' %}selected{% endif %}>古い順</option>
         </select>
       </div>
+      <div class="field" style="max-width:120px">
+        <label>件数/ページ</label>
+        <select name="per">
+          {% for p in [10,20,50,100,200] %}
+            <option value="{{ p }}" {% if per==p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div style="margin-left:auto; display:flex; gap:8px">
         <a class="btn secondary" href="{{ url_for('user_history', username=username) }}">条件クリア</a>
         <button class="btn" type="submit">検索</button>
@@ -72,13 +84,22 @@
               <td>{{ r["曲名"] }}</td>
               <td><span class="score">{{ '%.3f'|format(r["スコア"]) }}</span></td>
               <td>{{ r["歌手名"] }}</td>
-              <!-- ★ 時刻まで表示 -->
               <td>{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-      <div class="muted" style="margin-top:8px">全 {{ total }} 件</div>
+
+      <div class="pager">
+        <span class="info">全 {{ total }} 件 / {{ page }} / {{ total_pages }} ページ</span>
+        {% set params = {'song': song_query, 'singer': singer_query, 'sort': sort, 'per': per} %}
+        {% if page > 1 %}
+          <a class="btn secondary" href="{{ url_for('user_history', username=username, **params, page=page-1) }}">前へ</a>
+        {% endif %}
+        {% if page < total_pages %}
+          <a class="btn" href="{{ url_for('user_history', username=username, **params, page=page+1) }}">次へ</a>
+        {% endif %}
+      </div>
     {% else %}
       <div class="muted">データがありません</div>
     {% endif %}

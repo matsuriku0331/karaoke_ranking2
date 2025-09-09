@@ -42,27 +42,23 @@ class Score(db.Model):
 with app.app_context():
     db.create_all()
 
-# ---- Jinja フィルタ（ここが今回のポイント）----
+# ---- Jinja フィルタ ----
 @app.template_filter("fmtdate")
 def fmtdate(value, fmt="%Y-%m-%d"):
     """
-    日付を安全に 'YYYY-MM-DD' へ。None/文字列/Datetime どれでもOKにする。
-    fmt を指定すれば任意の書式で返す。
+    日付を安全に書式化。None/文字列/Datetime どれでもOK。
     """
     if value is None:
         return ""
-    # すでに datetime
     if hasattr(value, "strftime"):
         try:
             return value.strftime(fmt)
         except Exception:
             pass
-    # 文字列などは parse を試みる
     try:
         dt = datetime.fromisoformat(str(value))
         return dt.strftime(fmt)
     except Exception:
-        # どうしても無理なら先頭10文字だけ（YYYY-MM-DD 相当）を返す
         s = str(value)
         return s[:10]
 
@@ -224,7 +220,7 @@ def ranking():
     user_total_records = {}
 
     if not df_all.empty:
-        # ★ 2桁 → 3桁へ
+        # 平均は3桁表示
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(3).to_dict()
         user_total_records = df_all.groupby("ユーザー").size().to_dict()
 
@@ -298,6 +294,16 @@ def user_history(username):
     sort = request.args.get("sort", "recent")
     song_query = request.args.get("song", "").strip()
     singer_query = request.args.get("singer", "").strip()
+    # ★ ページネーション
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except Exception:
+        page = 1
+    try:
+        per = int(request.args.get("per", 50))
+    except Exception:
+        per = 50
+    per = min(max(per, 10), 200)  # 10〜200
 
     df = df_from_db()
     if df.empty:
@@ -316,12 +322,20 @@ def user_history(username):
             df = df.sort_values(["スコア", "日付"], ascending=[True, True])
         else:
             df = df.sort_values(["スコア", "日付"], ascending=[False, True])
-        records = df.to_dict(orient="records")
+
         total = len(df)
+        start = (page - 1) * per
+        end = start + per
+        df = df.iloc[start:end]
+        records = df.to_dict(orient="records")
+
+    total_pages = (total + per - 1) // per if (per and total) else 1
     return render_template("user_history.html",
                            username=username, records=records, total=total,
-                           sort=sort, song_query=song_query, singer_query=singer_query)
+                           sort=sort, song_query=song_query, singer_query=singer_query,
+                           page=page, per=per, total_pages=total_pages)
 
+# ---- User third rank ----
 @app.route("/user/<username>/thirds", methods=["GET"])
 def user_third_rank(username):
     df_all = df_from_db()
@@ -350,6 +364,16 @@ def all_history():
     sort = request.args.get("sort", "recent")
     song_query = request.args.get("song", "").strip()
     singer_query = request.args.get("singer", "").strip()
+    # ★ ページネーション
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except Exception:
+        page = 1
+    try:
+        per = int(request.args.get("per", 50))
+    except Exception:
+        per = 50
+    per = min(max(per, 10), 200)  # 10〜200
 
     df = df_from_db()
     if df.empty:
@@ -367,12 +391,18 @@ def all_history():
             df = df.sort_values(["スコア", "日付"], ascending=[True, True])
         else:
             df = df.sort_values(["スコア", "日付"], ascending=[False, True])
-        records = df.to_dict(orient="records")
-        total = len(df)
 
+        total = len(df)
+        start = (page - 1) * per
+        end = start + per
+        df = df.iloc[start:end]
+        records = df.to_dict(orient="records")
+
+    total_pages = (total + per - 1) // per if (per and total) else 1
     return render_template("all_history.html",
                            records=records, total=total, sort=sort,
-                           song_query=song_query, singer_query=singer_query)
+                           song_query=song_query, singer_query=singer_query,
+                           page=page, per=per, total_pages=total_pages)
 
 # ---- Admin ----
 @app.route("/admin/login", methods=["GET", "POST"])
