@@ -1,13 +1,13 @@
 import os
+import io
 import requests
 import pandas as pd
 import xml.etree.ElementTree as ET
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import UniqueConstraint
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime
-from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 
 # ---- Flask + DB setup ----
 app = Flask(__name__)
@@ -16,32 +16,17 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", None)  # 管理者用共有パスワード
 
-# Render の接続文字列（postgres:// → postgresql:// 置換 & sslmode=require 付与）
+# アップロード上限（5MB）
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+
+# Render の接続文字列（postgres:// → postgresql:// 置換）
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:
-    dburl = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    try:
-        parsed = urlparse(dburl)
-        q = dict(parse_qsl(parsed.query))
-        if "sslmode" not in q:
-            q["sslmode"] = "require"
-        dburl = urlunparse(parsed._replace(query=urlencode(q)))
-    except Exception:
-        pass
-    app.config["SQLALCHEMY_DATABASE_URI"] = dburl
+    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 else:
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///scores.db"
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# コネクションプールの堅牢化（Render での切断対策）
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_pre_ping": True,
-    "pool_recycle": 280,
-    "pool_size": 5,
-    "max_overflow": 10,
-}
-
 db = SQLAlchemy(app)
 
 # ---- DB model ----
@@ -61,20 +46,9 @@ class Score(db.Model):
 with app.app_context():
     db.create_all()
 
-# アプリ終了時に確実にセッションを閉じる
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    try:
-        db.session.remove()
-    except Exception:
-        pass
-
 # ---- Jinja フィルタ ----
 @app.template_filter("fmtdate")
 def fmtdate(value, fmt="%Y-%m-%d"):
-    """
-    日付を安全に書式化。None/文字列/Datetime どれでもOK。
-    """
     if value is None:
         return ""
     if hasattr(value, "strftime"):
@@ -121,10 +95,7 @@ USER_COOKIES = {
 }
 
 # ---- Helpers ----
-def fetch_damtomo_ai_scores(username, cookies, max_pages=10):
-    """
-    DAM★ともAI採点のXMLをページング取得。max_pages は既定 10。
-    """
+def fetch_damtomo_ai_scores(username, cookies, max_pages=10):  # ★ 10 に固定
     all_scores = []
     for page in range(1, max_pages + 1):
         params = {"cdmCardNo": cookies.get("scr_cdm", ""), "pageNo": page, "detailFlg": 0}
@@ -167,11 +138,6 @@ def fetch_damtomo_ai_scores(username, cookies, max_pages=10):
     return df
 
 def insert_scores_from_df(df_new):
-    """
-    DataFrame を DB に投入（ユニーク: song+user+date）。
-    OperationalError に対してはレコード単位で 1 回リトライ。
-    失敗した行はスキップして処理継続。
-    """
     if df_new.empty:
         return 0
     df_new = df_new.copy()
@@ -188,23 +154,10 @@ def insert_scores_from_df(df_new):
         score_val = float(r["スコア"])
         date_val = r["日付"].to_pydatetime() if hasattr(r["日付"], "to_pydatetime") else r["日付"]
 
-        # --- 既存チェック（2回までリトライ） ---
-        exists = None
-        for attempt in (1, 2):
-            try:
-                exists = session_db.query(Score).filter_by(song=song, user=user, date=date_val).first()
-                break
-            except OperationalError as e:
-                session_db.rollback()
-                print(f"[exists] OperationalError (attempt {attempt}) {song}/{user}/{date_val}: {e}")
-                try:
-                    db.engine.dispose()
-                except Exception:
-                    pass
+        exists = session_db.query(Score).filter_by(song=song, user=user, date=date_val).first()
         if exists:
             continue
 
-        # --- INSERT（2回までリトライ; rollback後は再度 add が必要） ---
         s = Score(song=song, singer=singer, user=user, score=score_val, date=date_val)
         session_db.add(s)
         try:
@@ -212,36 +165,13 @@ def insert_scores_from_df(df_new):
             inserted += 1
         except IntegrityError:
             session_db.rollback()
-        except OperationalError as e:
-            session_db.rollback()
-            try:
-                db.engine.dispose()
-            except Exception:
-                pass
-            # re-add & retry once
-            try:
-                session_db.add(s)
-                session_db.commit()
-                inserted += 1
-            except Exception as e2:
-                session_db.rollback()
-                print(f"[insert] give up after retry {song}/{user}/{date_val}: {e2}")
         except Exception as e:
             session_db.rollback()
             print(f"[insert] unexpected error inserting {song}/{user}/{date_val}: {e}")
     return inserted
 
 def df_from_db():
-    try:
-        rows = db.session.query(Score).all()
-    except OperationalError as e:
-        db.session.rollback()
-        print(f"[df_from_db] OperationalError: {e}")
-        try:
-            db.engine.dispose()
-        except Exception:
-            pass
-        rows = db.session.query(Score).all()
+    rows = db.session.query(Score).all()
     data = [{"曲名": r.song, "歌手名": r.singer, "ユーザー": r.user, "スコア": r.score, "日付": r.date} for r in rows]
     if not data:
         return pd.DataFrame(columns=["曲名", "歌手名", "ユーザー", "スコア", "日付"])
@@ -273,6 +203,78 @@ def admin_required(fn):
         return redirect(url_for("admin_login", next=request.path))
     return wrapper
 
+# ---- CSV ユーティリティ ----
+ALLOWED_CSV_EXTS = {"csv"}
+
+def _allowed_csv(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_CSV_EXTS
+
+def _read_csv_flex(file_storage) -> pd.DataFrame:
+    """
+    エンコーディングを utf-8-sig → cp932 の順で試す。
+    余計な空白をtrim。空行は落とす。
+    """
+    raw = file_storage.read()
+    for enc in ("utf-8-sig", "cp932"):
+        try:
+            buf = io.StringIO(raw.decode(enc))
+            df = pd.read_csv(buf)
+            break
+        except Exception:
+            df = None
+    if df is None:
+        raise ValueError("CSVの読み込みに失敗しました（文字コード不明）。UTF-8 / Shift_JIS を試してください。")
+
+    # 列名・文字列のトリム
+    df.columns = [str(c).strip() for c in df.columns]
+    for col in df.columns:
+        if df[col].dtype == object:
+            df[col] = df[col].astype(str).str.strip()
+    df = df.dropna(how="all")
+    return df
+
+def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    いろいろな列名バリエーションを、アプリの標準
+    「曲名」「歌手名」「ユーザー」「スコア」「日付」に正規化する
+    """
+    # 候補名（小文字比較）
+    candidates = {
+        "曲名": {"曲名", "song", "title", "song_name", "songs"},
+        "歌手名": {"歌手名", "artist", "singer", "artist_name"},
+        "ユーザー": {"ユーザー", "user", "name", "username"},
+        "スコア": {"スコア", "score", "点数"},
+        "日付": {"日付", "date", "日時", "scored_at", "time", "datetime"},
+    }
+
+    lower_map = {c.lower(): c for c in df.columns}
+    target_cols = {}
+    for std, opts in candidates.items():
+        hit = None
+        for o in opts:
+            if o.lower() in lower_map:
+                hit = lower_map[o.lower()]
+                break
+        if hit:
+            target_cols[std] = hit
+
+    # 必須：曲名, ユーザー, スコア, 日付（歌手名は任意）
+    required = {"曲名", "ユーザー", "スコア", "日付"}
+    if not required.issubset(set(target_cols.keys())):
+        missing = required - set(target_cols.keys())
+        raise ValueError(f"CSVの必須列が不足しています: {', '.join(missing)}")
+
+    out = pd.DataFrame()
+    out["曲名"] = df[target_cols["曲名"]]
+    out["歌手名"] = df[target_cols["歌手名"]] if "歌手名" in target_cols else None
+    out["ユーザー"] = df[target_cols["ユーザー"]]
+    # スコアをfloat化
+    out["スコア"] = pd.to_numeric(df[target_cols["スコア"]], errors="coerce")
+
+    # 日付：柔軟にパース
+    out["日付"] = pd.to_datetime(df[target_cols["日付"]], errors="coerce")
+    return out
+
 # ---- Public Routes ----
 @app.route("/", methods=["GET"])
 def home():
@@ -291,8 +293,7 @@ def ranking():
     user_total_records = {}
 
     if not df_all.empty:
-        # 平均は3桁表示
-        user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(3).to_dict()
+        user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
         user_total_records = df_all.groupby("ユーザー").size().to_dict()
 
     filtered = df_all.copy()
@@ -346,31 +347,18 @@ def ranking():
 
 @app.route("/update_ranking", methods=["POST"])
 def update_ranking():
-    """
-    ランキング更新。各ユーザーの DAM★とも から最新を取って DB へ。
-    例外はキャッチしてリダイレクト（500を出さない）。
-    """
     song_query = request.form.get("song", "")
     singer_query = request.form.get("singer", "")
     total_inserted = 0
-    try:
-        for user, cookies in USER_COOKIES.items():
-            if not cookies.get("scr_cdm"):
-                continue
-            df_new = fetch_damtomo_ai_scores(user, cookies)  # max_pages=10
-            if df_new.empty:
-                print(f"[update] {user}: fetched 0 rows")
-                continue
+    for user, cookies in USER_COOKIES.items():
+        if not cookies.get("scr_cdm"):
+            continue
+        df_new = fetch_damtomo_ai_scores(user, cookies)
+        if not df_new.empty:
             inserted = insert_scores_from_df(df_new)
             total_inserted += inserted
-            print(f"[update] {user}: inserted {inserted} rows (total={total_inserted})")
-    except Exception as e:
-        # 何があっても 500 にせず戻す
-        print(f"[update_ranking] unexpected error: {e}")
-        flash("更新中にエラーが発生しました（ログを確認してください）。", "error")
-    finally:
-        # どのみちランキングへ戻る
-        return redirect(url_for("ranking", song=song_query, singer=singer_query))
+            print(f"[update] {user}: inserted {inserted} rows")
+    return redirect(url_for("ranking", song=song_query, singer=singer_query))
 
 # ---- User History ----
 @app.route("/user/<username>", methods=["GET"])
@@ -378,16 +366,8 @@ def user_history(username):
     sort = request.args.get("sort", "recent")
     song_query = request.args.get("song", "").strip()
     singer_query = request.args.get("singer", "").strip()
-    # ページネーション
-    try:
-        page = max(int(request.args.get("page", 1)), 1)
-    except Exception:
-        page = 1
-    try:
-        per = int(request.args.get("per", 50))
-    except Exception:
-        per = 50
-    per = min(max(per, 10), 200)  # 10〜200
+    per = int(request.args.get("per", 50) or 50)
+    page = int(request.args.get("page", 1) or 1)
 
     df = df_from_db()
     if df.empty:
@@ -410,16 +390,15 @@ def user_history(username):
         total = len(df)
         start = (page - 1) * per
         end = start + per
-        df = df.iloc[start:end]
-        records = df.to_dict(orient="records")
+        page_df = df.iloc[start:end]
+        records = page_df.to_dict(orient="records")
 
-    total_pages = (total + per - 1) // per if (per and total) else 1
+    total_pages = max((total + per - 1) // per, 1)
     return render_template("user_history.html",
                            username=username, records=records, total=total,
                            sort=sort, song_query=song_query, singer_query=singer_query,
-                           page=page, per=per, total_pages=total_pages)
+                           per=per, page=page, total_pages=total_pages)
 
-# ---- User third rank ----
 @app.route("/user/<username>/thirds", methods=["GET"])
 def user_third_rank(username):
     df_all = df_from_db()
@@ -448,23 +427,15 @@ def all_history():
     sort = request.args.get("sort", "recent")
     song_query = request.args.get("song", "").strip()
     singer_query = request.args.get("singer", "").strip()
-    # ページネーション
-    try:
-        page = max(int(request.args.get("page", 1)), 1)
-    except Exception:
-        page = 1
-    try:
-        per = int(request.args.get("per", 50))
-    except Exception:
-        per = 50
-    per = min(max(per, 10), 200)  # 10〜200
+    per = int(request.args.get("per", 50) or 50)
+    page = int(request.args.get("page", 1) or 1)
 
     df = df_from_db()
     if df.empty:
         records, total = [], 0
     else:
         if song_query:
-            df = df[df["曲名"].fillな("").str.contains(song_query, case=False, na=False)]
+            df = df[df["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
         if singer_query:
             df = df[df["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
         if sort == "recent":
@@ -479,14 +450,14 @@ def all_history():
         total = len(df)
         start = (page - 1) * per
         end = start + per
-        df = df.iloc[start:end]
-        records = df.to_dict(orient="records")
+        page_df = df.iloc[start:end]
+        records = page_df.to_dict(orient="records")
 
-    total_pages = (total + per - 1) // per if (per and total) else 1
+    total_pages = max((total + per - 1) // per, 1)
     return render_template("all_history.html",
                            records=records, total=total, sort=sort,
                            song_query=song_query, singer_query=singer_query,
-                           page=page, per=per, total_pages=total_pages)
+                           per=per, page=page, total_pages=total_pages)
 
 # ---- Admin ----
 @app.route("/admin/login", methods=["GET", "POST"])
@@ -542,19 +513,6 @@ def admin_add():
     except IntegrityError:
         db.session.rollback()
         flash("同じ（曲名・ユーザー・日時）のデータが既に存在します。", "error")
-    except OperationalError as e:
-        db.session.rollback()
-        try:
-            db.engine.dispose()
-        except Exception:
-            pass
-        try:
-            db.session.add(s)
-            db.session.commit()
-            flash("1件追加しました。（接続リトライ成功）", "info")
-        except Exception as e2:
-            db.session.rollback()
-            flash(f"接続エラーのため追加に失敗しました: {e2}", "error")
     except Exception as e:
         db.session.rollback()
         flash(f"予期せぬエラー: {e}", "error")
@@ -576,20 +534,7 @@ def admin_delete():
         flash("日時の形式が不正です。YYYY-MM-DD または YYYY-MM-DDTHH:MM で入力してください。", "error")
         return redirect(url_for("admin"))
 
-    # 行取得（2回までリトライ）
-    row = None
-    for attempt in (1, 2):
-        try:
-            row = Score.query.filter_by(song=song, user=user, date=date_val).first()
-            break
-        except OperationalError as e:
-            db.session.rollback()
-            print(f"[delete] OperationalError on fetch (attempt {attempt}): {e}")
-            try:
-                db.engine.dispose()
-            except Exception:
-                pass
-
+    row = Score.query.filter_by(song=song, user=user, date=date_val).first()
     if not row:
         flash("該当レコードが見つかりません（曲名・ユーザー・日時の完全一致で検索）。", "error")
         return redirect(url_for("admin"))
@@ -598,22 +543,39 @@ def admin_delete():
         db.session.delete(row)
         db.session.commit()
         flash("1件削除しました。", "info")
-    except OperationalError as e:
-        db.session.rollback()
-        try:
-            db.engine.dispose()
-        except Exception:
-            pass
-        try:
-            db.session.delete(row)
-            db.session.commit()
-            flash("1件削除しました。（接続リトライ成功）", "info")
-        except Exception as e2:
-            db.session.rollback()
-            flash(f"削除でエラーが発生しました: {e2}", "error")
     except Exception as e:
         db.session.rollback()
         flash(f"削除でエラーが発生しました: {e}", "error")
+    return redirect(url_for("admin"))
+
+# ---- CSV Import ----
+@app.route("/admin/import", methods=["POST"])
+@admin_required
+def admin_import():
+    file = request.files.get("csvfile")
+    if not file or file.filename == "":
+        flash("CSVファイルを選択してください。", "error")
+        return redirect(url_for("admin"))
+    if not _allowed_csv(file.filename):
+        flash("CSV以外の拡張子は受け付けていません。", "error")
+        return redirect(url_for("admin"))
+
+    try:
+        df_raw = _read_csv_flex(file)
+        df_norm = _normalize_csv_columns(df_raw)
+        before = len(df_norm)
+        # 無効（NaT/NaN）を除外
+        df_norm = df_norm.dropna(subset=["曲名", "ユーザー", "スコア", "日付"])
+        dropped = before - len(df_norm)
+
+        inserted = insert_scores_from_df(df_norm)
+        msg = f"CSV取り込み完了: 受領 {before} 行 / 無効 {dropped} 行 / 追加 {inserted} 行"
+        flash(msg, "info")
+    except ValueError as ve:
+        flash(str(ve), "error")
+    except Exception as e:
+        flash(f"CSV取り込み中にエラー: {e}", "error")
+
     return redirect(url_for("admin"))
 
 # ---- 起動 ----
