@@ -61,14 +61,11 @@
   <input type="hidden" name="singer" value="{{ singer_query }}">
 {% endblock %}
 
-{# ★ ヘッダー右側に「ホームに戻る」ボタンを移設 #}
-{% block header_extra %}
-  <a href="{{ url_for('home') }}" class="btn secondary">ホームに戻る</a>
-{% endblock %}
-
 {% block content %}
   <div class="h1" style="display:flex; align-items:center; justify-content:space-between;">
     <span>曲別ランキング</span>
+    <!-- 🔙 元の位置に戻す -->
+    <a href="{{ url_for('home') }}" class="btn secondary" style="font-size:14px; padding:6px 12px;">ホームに戻る</a>
   </div>
 
   {% set users_fixed = ['まつりく','えす','こんけあ'] %}
