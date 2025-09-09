@@ -13,25 +13,23 @@
     }
     thead th, tbody td{
       vertical-align:middle; padding:10px 12px;
-      overflow:hidden; /* ★ セル側でクリップして重なり防止 */
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
 
-    .col-title { text-align:left; }
-    .col-score { text-align:right; }
-    .col-singer{ text-align:left; }
-    .col-date  { text-align:left; }
+    /* 列幅（歌手名あり） */
+    .col-title { width:50%; text-align:left; }
+    .col-score { width:18%; text-align:right; }
+    .col-singer{ width:16%; text-align:left; }
+    .col-date  { width:16%; text-align:left; }
 
     .truncate{
-      display:block;
-      width:100%;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      display:block; width:100%;
+      overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
     }
     .nowrap{ white-space:nowrap; }
     .score.compact{ padding:2px 6px; }
 
-    /* 検索欄：常にフル幅＆大きめ */
+    /* 検索欄 */
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
     .controls .field{min-width:240px; flex:1}
     label{font-size:12px}
@@ -42,9 +40,13 @@
     .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; flex-wrap:wrap; }
     .pager .info{ color:var(--muted); font-size:12px; }
 
+    /* モバイル：曲名とスコアを優先確保 */
     @media (max-width: 640px){
       thead th, tbody td { padding:8px 10px; font-size:14px; }
-      input[type="text"], select { font-size:16px; min-height:46px; }
+      .col-title { width:54%; }
+      .col-score { width:20%; }
+      .col-singer{ width:13%; } /* 横スクロールで見る想定 */
+      .col-date  { width:13%; }
     }
   </style>
 {% endblock %}
@@ -95,14 +97,6 @@
   <div class="table-wrap card">
     {% if records %}
       <table>
-        <!-- ★ colgroup で列幅を厳密指定 -->
-        <colgroup>
-          <col style="width:auto; min-width:260px;">  {# 曲名：余りをここへ #}
-          <col style="width:124px;">                  {# スコア #}
-          <col style="width:180px;">                  {# 歌手名 #}
-          <col style="width:180px;">                  {# 日付 #}
-        </colgroup>
-
         <thead>
           <tr>
             <th class="col-title">曲名</th>
@@ -115,7 +109,7 @@
           {% for r in records %}
             <tr>
               <td><span class="truncate">{{ r["曲名"] }}</span></td>
-              <td class="nowrap"><span class="score compact">{{ '%.3f'|format(r["スコア"]) }}</span></td>
+              <td class="nowrap" style="text-align:right;"><span class="score compact">{{ '%.3f'|format(r["スコア"]) }}</span></td>
               <td>{{ r["歌手名"] }}</td>
               <td>{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
             </tr>
@@ -152,3 +146,4 @@
     {% endif %}
   </div>
 {% endblock %}
+
