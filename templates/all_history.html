@@ -106,12 +106,23 @@
 
       <div class="pager">
         <span class="info">全 {{ total }} 件 / {{ page }} / {{ total_pages }} ページ</span>
-        {% set params = {'song': song_query, 'singer': singer_query, 'sort': sort, 'per': per} %}
         {% if page > 1 %}
-          <a class="btn secondary" href="{{ url_for('all_history', **params, page=page-1) }}">前へ</a>
+          <a class="btn secondary"
+             href="{{ url_for('all_history',
+                               song=song_query,
+                               singer=singer_query,
+                               sort=sort,
+                               per=per,
+                               page=page-1) }}">前へ</a>
         {% endif %}
         {% if page < total_pages %}
-          <a class="btn" href="{{ url_for('all_history', **params, page=page+1) }}">次へ</a>
+          <a class="btn"
+             href="{{ url_for('all_history',
+                               song=song_query,
+                               singer=singer_query,
+                               sort=sort,
+                               per=per,
+                               page=page+1) }}">次へ</a>
         {% endif %}
       </div>
     {% else %}
