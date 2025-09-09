@@ -7,6 +7,14 @@
     .col-date{min-width: 140px;}
     @media (max-width:720px){ .col-date{min-width: 160px;} }
     .score{ font-weight:900; letter-spacing:.2px; text-shadow:0 0 12px rgba(34,197,94,.18); }
+
+    /* モバイルの余白＆フォント最適化 */
+    @media (max-width:768px){
+      th, td { font-size:14px; padding:8px 10px; }
+    }
+    @media (max-width:480px){
+      th, td { font-size:13px; padding:7px 8px; }
+    }
   </style>
 {% endblock %}
 
@@ -52,7 +60,6 @@
                   </td>
                   <td>{{ record["ユーザー"] }}</td>
                   <td><span class="score">{{ '%.3f'|format(record["スコア"]) }}</span></td>
-                  <!-- 指示では3位ページは指定なし。現状のまま（日付=YYYY-MM-DD） -->
                   <td>{{ record["日付"]|fmtdate }}</td>
                 </tr>
               {% endfor %}

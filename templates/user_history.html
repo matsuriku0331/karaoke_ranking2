@@ -11,15 +11,20 @@
     @media (max-width:640px){ .controls .field{min-width:unset; flex:1} }
     .score{ font-weight:900; letter-spacing:.2px; text-shadow:0 0 12px rgba(34,197,94,.18); }
 
-    /* 入力を常に見やすく */
+    /* 入力を常に見やすく & モバイル余白最適化 */
     input[type="text"], select { padding: 12px 14px; font-size: 16px; width:100%; }
-    @media (max-width:640px){
-      input[type="text"], select { padding: 14px 16px; font-size: 18px; }
-      .btn, .btn.secondary { padding: 12px 18px; font-size: 16px; }
+    @media (max-width:768px){
+      input[type="text"], select { padding: 13px 15px; font-size: 16px; }
+      .btn, .btn.secondary { padding: 11px 16px; font-size: 15px; }
+    }
+    @media (max-width:480px){
+      input[type="text"], select { padding: 12px 14px; font-size: 14px; }
+      .btn, .btn.secondary { padding: 10px 14px; font-size: 13px; }
+      th, td { font-size:13px; padding:7px 8px; }
     }
 
     /* ページネーション */
-    .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; }
+    .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; flex-wrap:wrap; }
     .pager .info{ color:var(--muted); font-size:12px; }
   </style>
 {% endblock %}
@@ -89,6 +94,7 @@
           {% endfor %}
         </tbody>
       </table>
+      <div class="muted" style="margin-top:8px">全 {{ total }} 件</div>
 
       <div class="pager">
         <span class="info">全 {{ total }} 件 / {{ page }} / {{ total_pages }} ページ</span>

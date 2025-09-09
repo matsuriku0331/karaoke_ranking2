@@ -15,8 +15,12 @@
     @media (max-width:1120px){ .user-cards{grid-template-columns: 1fr 1fr 1fr} }
     @media (max-width:920px){ .user-cards{grid-template-columns: 1fr 1fr} }
     @media (max-width:640px){ .user-cards{grid-template-columns: 1fr} }
-    .user-card .name{ display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px; margin-bottom:6px; }
-    .user-card .name .dot{ width:10px; height:10px; border-radius:999px; box-shadow:0 0 16px rgba(34,197,94,.35); }
+
+    .user-card .name{
+      display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px; margin-bottom:6px;
+      min-width:0;
+    }
+    .user-card .name .dot{ width:10px; height:10px; border-radius:999px; box-shadow:0 0 16px rgba(34,197,94,.35); flex-shrink:0; }
     .user-card .stats{ display:flex; gap:8px; flex-wrap:wrap; }
     .pill{ padding:8px 10px; border-radius:12px; font-weight:700; font-size:13px; background:rgba(17,24,39,.66); border:1px solid var(--border); }
     .pill.acc{background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.35); color:#86efac}
@@ -35,11 +39,19 @@
       background:none; border:none; text-shadow:none; padding:0;
     }
 
+    /* ★ 文字折返しを強化して縦伸び防止 */
+    .song-title, .artist, td, th { word-break:break-word; overflow-wrap:break-word; }
+
     /* ★ モバイル最適化：検索欄を1列にしてタップしやすく */
-    @media (max-width: 640px) {
+    @media (max-width: 768px) {
       .grid.cols-3{ grid-template-columns: 1fr; }
-      input[type="text"], select { padding: 14px 16px; font-size: 18px; }
-      .btn, .btn.secondary { padding: 12px 18px; font-size: 16px; }
+      input[type="text"], select { padding: 13px 15px; font-size: 16px; }
+      .btn, .btn.secondary { padding: 11px 16px; font-size: 15px; }
+    }
+    @media (max-width: 480px) {
+      input[type="text"], select { padding: 12px 14px; font-size: 14px; }
+      .btn, .btn.secondary { padding: 10px 14px; font-size: 13px; }
+      .pill{ font-size:12px; padding:7px 8px; }
     }
   </style>
 {% endblock %}
