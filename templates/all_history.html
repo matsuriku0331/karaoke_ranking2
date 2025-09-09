@@ -4,8 +4,8 @@
 {% block head %}
   <style>
     .table-wrap{overflow-x:auto}
-    .col-date{min-width: 140px;}
-    @media (max-width:720px){ .col-date{min-width: 160px;} }
+    .col-date{min-width: 160px;}
+    @media (max-width:720px){ .col-date{min-width: 180px;} }
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
     .controls .field{min-width:200px}
     @media (max-width:640px){ .controls .field{min-width:unset; flex:1} }
@@ -22,6 +22,13 @@
     .chip-violet{ background:rgba(167,139,250,.10);border-color:rgba(167,139,250,.35);color:#c4b5fd }
 
     .score{ font-weight:900; letter-spacing:.2px; text-shadow:0 0 12px rgba(34,197,94,.18); }
+
+    /* 入力を常に見やすく */
+    input[type="text"], select { padding: 12px 14px; font-size: 16px; width:100%; }
+    @media (max-width:640px){
+      input[type="text"], select { padding: 14px 16px; font-size: 18px; }
+      .btn, .btn.secondary { padding: 12px 18px; font-size: 16px; }
+    }
   </style>
 {% endblock %}
 
@@ -76,10 +83,11 @@
             {% set chip = 'chip-green' if u=='まつりく' else ('chip-cyan' if u=='えす' else 'chip-violet') %}
             <tr class="{{ bar }}">
               <td>{{ r["曲名"] }}</td>
-              <td><span class="score">{{ '%.2f'|format(r["スコア"]) }}</span></td>
+              <td><span class="score">{{ '%.3f'|format(r["スコア"]) }}</span></td>
               <td><span class="uname-chip {{ chip }}">{{ u }}</span></td>
               <td>{{ r["歌手名"] }}</td>
-              <td>{{ r["日付"]|fmtdate }}</td>
+              <!-- ★ 時刻まで表示 -->
+              <td>{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
             </tr>
           {% endfor %}
         </tbody>

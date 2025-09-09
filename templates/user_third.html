@@ -51,7 +51,8 @@
                     {% else %}<span class="medal-3">🥉 3位</span>{% endif %}
                   </td>
                   <td>{{ record["ユーザー"] }}</td>
-                  <td><span class="score">{{ '%.2f'|format(record["スコア"]) }}</span></td>
+                  <td><span class="score">{{ '%.3f'|format(record["スコア"]) }}</span></td>
+                  <!-- 指示では3位ページは指定なし。現状のまま（日付=YYYY-MM-DD） -->
                   <td>{{ record["日付"]|fmtdate }}</td>
                 </tr>
               {% endfor %}

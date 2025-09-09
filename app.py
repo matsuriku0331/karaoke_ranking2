@@ -47,6 +47,7 @@ with app.app_context():
 def fmtdate(value, fmt="%Y-%m-%d"):
     """
     日付を安全に 'YYYY-MM-DD' へ。None/文字列/Datetime どれでもOKにする。
+    fmt を指定すれば任意の書式で返す。
     """
     if value is None:
         return ""
@@ -223,7 +224,8 @@ def ranking():
     user_total_records = {}
 
     if not df_all.empty:
-        user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
+        # ★ 2桁 → 3桁へ
+        user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(3).to_dict()
         user_total_records = df_all.groupby("ユーザー").size().to_dict()
 
     filtered = df_all.copy()
