@@ -4,29 +4,40 @@
 {% block head %}
   <style>
     .table-wrap{overflow-x:auto}
-    /* 歌手名・日付は横スクロールで見える程度の広め幅 */
-    .col-singer{min-width: 200px;}
-    .col-date{min-width: 200px;}
 
+    /* テーブルを固定レイアウトにして折返し制御 */
+    table{ width:100%; border-collapse:separate; border-spacing:0 8px; table-layout:fixed; }
+    th, td { vertical-align:middle; padding:10px 12px; }
+
+    /* 列幅：曲名/スコア/ユーザーは見やすく、歌手名/日付は横スクロールで見える程度 */
+    .col-title { min-width:220px; }
+    .col-score { min-width:120px; }
+    .col-user  { min-width:130px; }
+    .col-singer{ min-width:160px; }
+    .col-date  { min-width:160px; }
+
+    /* 検索欄：常にフル幅＆タップしやすいサイズ */
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
-    .controls .field{min-width:220px; flex:1}
+    .controls .field{min-width:240px; flex:1}
+    label{font-size:12px}
+    input[type="text"], select {
+      width:100%; padding:14px 16px; font-size:16px; min-height:46px;
+    }
 
-    /* 入力：モバイルでも常にタップしやすい大きさに */
-    input[type="text"], select { padding: 14px 16px; font-size: 16px; width:100%; min-height:44px; }
-
-    /* 曲名・スコアは1行固定＋省略記号 */
+    /* 曲名・スコアは1行固定（省略記号で省略） */
     .nowrap{ white-space:nowrap; }
     .truncate{
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-      max-width: 420px; display:inline-block;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block;
+      max-width: 420px;
     }
     @media (max-width: 1024px){ .truncate{ max-width: 300px; } }
-    @media (max-width: 768px){ .truncate{ max-width: 220px; } }
-    @media (max-width: 480px){ .truncate{ max-width: 160px; } }
+    @media (max-width: 768px) { .truncate{ max-width: 230px; } }
+    @media (max-width: 480px) { .truncate{ max-width: 165px; } }
 
-    .bar-green { box-shadow: inset 3px 0 0 #22c55e; }
-    .bar-cyan  { box-shadow: inset 3px 0 0 #06b6d4; }
-    .bar-violet{ box-shadow: inset 3px 0 0 #a78bfa; }
+    /* スコアをコンパクト表示（枠は残す） */
+    .score.compact{ padding:2px 6px; }
+
+    /* ユーザーチップ */
     .uname-chip{
       display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700;
       border:1px solid var(--border);
@@ -35,14 +46,29 @@
     .chip-cyan  { background:rgba(6,182,212,.10);  border-color:rgba(6,182,212,.35);  color:#67e8f9 }
     .chip-violet{ background:rgba(167,139,250,.10);border-color:rgba(167,139,250,.35);color:#c4b5fd }
 
-    .score{ font-weight:900; letter-spacing:.2px; text-shadow:0 0 12px rgba(34,197,94,.18); }
+    /* 行の色バー */
+    .bar-green { box-shadow: inset 3px 0 0 #22c55e; }
+    .bar-cyan  { box-shadow: inset 3px 0 0 #06b6d4; }
+    .bar-violet{ box-shadow: inset 3px 0 0 #a78bfa; }
 
     /* ページネーション */
     .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; flex-wrap:wrap; }
     .pager .info{ color:var(--muted); font-size:12px; }
 
-    /* テーブル：1行高さを詰め過ぎない */
-    th, td { vertical-align:middle; }
+    /* モバイル微調整 */
+    @media (max-width: 640px){
+      th, td { padding:8px 10px; font-size:14px; }
+      label{ font-size:12px; }
+      input[type="text"], select { font-size:16px; min-height:46px; }
+      .col-title{ min-width:200px; }
+      .col-score{ min-width:110px; }
+      .col-user { min-width:120px; }
+      .col-singer{ min-width:150px; }
+      .col-date  { min-width:150px; }
+    }
+    @media (max-width: 380px){
+      .truncate{ max-width: 150px; }
+    }
   </style>
 {% endblock %}
 
@@ -91,9 +117,9 @@
       <table>
         <thead>
           <tr>
-            <th style="min-width:220px">曲名</th>
-            <th style="min-width:120px">スコア</th>
-            <th style="min-width:120px">ユーザー名</th>
+            <th class="col-title">曲名</th>
+            <th class="col-score">スコア</th>
+            <th class="col-user">ユーザー名</th>
             <th class="col-singer">歌手名</th>
             <th class="col-date">日付</th>
           </tr>
@@ -105,7 +131,7 @@
             {% set chip = 'chip-green' if u=='まつりく' else ('chip-cyan' if u=='えす' else 'chip-violet') %}
             <tr class="{{ bar }}">
               <td><span class="truncate">{{ r["曲名"] }}</span></td>
-              <td class="nowrap"><span class="score">{{ '%.3f'|format(r["スコア"]) }}</span></td>
+              <td class="nowrap"><span class="score compact">{{ '%.3f'|format(r["スコア"]) }}</span></td>
               <td><span class="uname-chip {{ chip }}">{{ u }}</span></td>
               <td class="col-singer">{{ r["歌手名"] }}</td>
               <td class="col-date">{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>
