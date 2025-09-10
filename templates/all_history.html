@@ -121,7 +121,11 @@
             {% set bar = 'bar-green' if u=='まつりく' else ('bar-cyan' if u=='えす' else 'bar-violet') %}
             {% set chip = 'chip-green' if u=='まつりく' else ('chip-cyan' if u=='えす' else 'chip-violet') %}
             <tr class="{{ bar }}">
-              <td><span class="truncate">{{ r["曲名"] }}</span></td>
+              <td>
+                <a href="{{ url_for('ranking', song=r['曲名']) }}" class="name-link">
+                  <span class="truncate">{{ r["曲名"] }}</span>
+                </a>
+              </td>
               <td class="td-score"><span class="score compact nowrap">{{ '%.3f'|format(r["スコア"]) }}</span></td>
               <td><span class="uname-chip {{ chip }}">{{ u }}</span></td>
               <td>{{ r["日付"]|fmtdate("%Y-%m-%d %H:%M") }}</td>

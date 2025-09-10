@@ -358,7 +358,8 @@ def update_ranking():
             inserted = insert_scores_from_df(df_new)
             total_inserted += inserted
             print(f"[update] {user}: inserted {inserted} rows")
-    return redirect(url_for("ranking", song=song_query, singer=singer_query))
+    # 元のままのメッセージでもOKだが、ここでは何も変更しない
+    return redirect(request.referrer or url_for("ranking", song=song_query, singer=singer_query))
 
 # ---- User History ----
 @app.route("/user/<username>", methods=["GET"])
