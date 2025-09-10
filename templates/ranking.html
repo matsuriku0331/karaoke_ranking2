@@ -6,35 +6,23 @@
     .table-wrap{overflow-x:auto}
     .col-date{min-width: 140px;}
     @media (max-width:720px){ .col-date{min-width: 160px;} }
-
-    .user-cards{
-      display:grid; gap:12px;
-      grid-template-columns: repeat(4, 1fr);
-      margin-bottom:16px;
-    }
+    .user-cards{ display:grid; gap:12px; grid-template-columns: repeat(4, 1fr); margin-bottom:16px; }
     @media (max-width:1120px){ .user-cards{grid-template-columns: 1fr 1fr 1fr} }
     @media (max-width:920px){ .user-cards{grid-template-columns: 1fr 1fr} }
     @media (max-width:640px){ .user-cards{grid-template-columns: 1fr} }
-
-    .user-card .name{
-      display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px; margin-bottom:6px;
-      min-width:0;
-    }
+    .user-card .name{ display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px; margin-bottom:6px; min-width:0; }
     .user-card .name .dot{ width:10px; height:10px; border-radius:999px; box-shadow:0 0 16px rgba(34,197,94,.35); flex-shrink:0; }
     .user-card .stats{ display:flex; gap:8px; flex-wrap:wrap; }
     .pill{ padding:8px 10px; border-radius:12px; font-weight:700; font-size:13px; background:rgba(17,24,39,.66); border:1px solid var(--border); }
     .pill.acc{background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.35); color:#86efac}
     .pill.cyan{background:rgba(6,182,212,.10); border-color:rgba(6,182,212,.35); color:#67e8f9}
     .pill.gray{background:rgba(148,163,184,.08); border-color:rgba(148,163,184,.30); color:#cbd5e1}
-
     input[type="text"], select { padding: 12px 14px; font-size: 16px; width:100%; }
     .name-link{ color:var(--text); text-decoration:none; }
     .name-link:hover{ text-decoration:underline; }
-
     .score{ font-weight:900; letter-spacing:.2px; text-shadow:0 0 12px rgba(34,197,94,.18); }
     .user-card .stats .score{ background:none; border:none; text-shadow:none; padding:0; }
     .song-title, .artist, td, th { word-break:break-word; overflow-wrap:break-word; }
-
     @media (max-width: 768px) {
       .grid.cols-3{ grid-template-columns: 1fr; }
       input[type="text"], select { padding: 13px 15px; font-size: 16px; }
@@ -60,6 +48,8 @@
     <span>曲別ランキング</span>
     <a href="{{ url_for('home') }}" class="btn secondary" style="font-size:14px; padding:6px 12px;">ホームに戻る</a>
   </div>
+
+  <div class="muted" style="margin-bottom:10px">検索結果: {{ result_count }} 件</div>
 
   {% set users_fixed = ['まつりく','えす','こんけあ'] %}
   <div class="user-cards">
@@ -92,7 +82,6 @@
     </div>
   </div>
 
-  <!-- ★検索フォーム拡張 -->
   <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
     <div class="grid cols-3">
       <div>
@@ -104,21 +93,8 @@
         <input type="text" id="singer" name="singer" placeholder="例：三浦たくま" value="{{ singer_query }}">
       </div>
       <div>
-        <label for="filter_user">ユーザー</label>
-        <select name="filter_user" id="filter_user">
-          <option value="">選択してください</option>
-          <option value="まつりく" {% if filter_user=='まつりく' %}selected{% endif %}>まつりく</option>
-          <option value="えす" {% if filter_user=='えす' %}selected{% endif %}>えす</option>
-          <option value="こんけあ" {% if filter_user=='こんけあ' %}selected{% endif %}>こんけあ</option>
-        </select>
-        <div style="margin-top:6px">
-          <label><input type="radio" name="filter_type" value="others2"
-                        {% if filter_type=='others2' %}checked{% endif %}> 他の2人が歌っている曲</label><br>
-          <label><input type="radio" name="filter_type" value="solo"
-                        {% if filter_type=='solo' %}checked{% endif %}> 誰か1人だけが歌っている曲</label><br>
-          <label><input type="radio" name="filter_type" value=""
-                        {% if not filter_type %}checked{% endif %}> 全て</label>
-        </div>
+        <label>並び替え</label>
+        <input type="text" value="1位スコアの降順" readonly>
       </div>
     </div>
     <div class="row" style="margin-top:12px; justify-content:flex-end">

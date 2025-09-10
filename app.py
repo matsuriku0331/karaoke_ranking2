@@ -335,6 +335,7 @@ def ranking():
     return render_template(
         "ranking.html",
         ranking_list=ranking_list,
+        result_count=len(ranking_list),  # ★件数を追加
         user_averages=user_averages,
         first_place_counts=first_place_counts,
         third_place_counts=third_place_counts,
