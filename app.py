@@ -95,7 +95,7 @@ USER_COOKIES = {
 }
 
 # ---- Helpers ----
-def fetch_damtomo_ai_scores(username, cookies, max_pages=10):  # ★ 10 に固定
+def fetch_damtomo_ai_scores(username, cookies, max_pages=10):
     all_scores = []
     for page in range(1, max_pages + 1):
         params = {"cdmCardNo": cookies.get("scr_cdm", ""), "pageNo": page, "detailFlg": 0}
@@ -203,17 +203,12 @@ def admin_required(fn):
         return redirect(url_for("admin_login", next=request.path))
     return wrapper
 
-# ---- CSV ユーティリティ ----
 ALLOWED_CSV_EXTS = {"csv"}
 
 def _allowed_csv(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_CSV_EXTS
 
 def _read_csv_flex(file_storage) -> pd.DataFrame:
-    """
-    エンコーディングを utf-8-sig → cp932 の順で試す。
-    余計な空白をtrim。空行は落とす。
-    """
     raw = file_storage.read()
     for enc in ("utf-8-sig", "cp932"):
         try:
@@ -225,7 +220,6 @@ def _read_csv_flex(file_storage) -> pd.DataFrame:
     if df is None:
         raise ValueError("CSVの読み込みに失敗しました（文字コード不明）。UTF-8 / Shift_JIS を試してください。")
 
-    # 列名・文字列のトリム
     df.columns = [str(c).strip() for c in df.columns]
     for col in df.columns:
         if df[col].dtype == object:
@@ -234,11 +228,6 @@ def _read_csv_flex(file_storage) -> pd.DataFrame:
     return df
 
 def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    いろいろな列名バリエーションを、アプリの標準
-    「曲名」「歌手名」「ユーザー」「スコア」「日付」に正規化する
-    """
-    # 候補名（小文字比較）
     candidates = {
         "曲名": {"曲名", "song", "title", "song_name", "songs"},
         "歌手名": {"歌手名", "artist", "singer", "artist_name"},
@@ -258,7 +247,6 @@ def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
         if hit:
             target_cols[std] = hit
 
-    # 必須：曲名, ユーザー, スコア, 日付（歌手名は任意）
     required = {"曲名", "ユーザー", "スコア", "日付"}
     if not required.issubset(set(target_cols.keys())):
         missing = required - set(target_cols.keys())
@@ -268,10 +256,7 @@ def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
     out["曲名"] = df[target_cols["曲名"]]
     out["歌手名"] = df[target_cols["歌手名"]] if "歌手名" in target_cols else None
     out["ユーザー"] = df[target_cols["ユーザー"]]
-    # スコアをfloat化
     out["スコア"] = pd.to_numeric(df[target_cols["スコア"]], errors="coerce")
-
-    # 日付：柔軟にパース
     out["日付"] = pd.to_datetime(df[target_cols["日付"]], errors="coerce")
     return out
 
@@ -284,8 +269,21 @@ def home():
 def ranking():
     song_query = request.args.get("song", "")
     singer_query = request.args.get("singer", "")
+    filter_user = request.args.get("filter_user", "")
+    filter_type = request.args.get("filter_type", "")
 
     df_all = df_from_db()
+
+    if not df_all.empty and filter_user and filter_type:
+        song_users = df_all.groupby("曲名")["ユーザー"].unique()
+        if filter_type == "others2":
+            allowed = song_users[song_users.apply(
+                lambda us: filter_user not in us and len(set(us)) == 2
+            )].index
+            df_all = df_all[df_all["曲名"].isin(allowed)]
+        elif filter_type == "solo":
+            allowed = song_users[song_users.apply(lambda us: len(set(us)) == 1)].index
+            df_all = df_all[df_all["曲名"].isin(allowed)]
 
     user_averages = {}
     first_place_counts = {}
@@ -343,12 +341,16 @@ def ranking():
         user_total_records=user_total_records,
         song_query=song_query,
         singer_query=singer_query,
+        filter_user=filter_user,
+        filter_type=filter_type,
     )
 
 @app.route("/update_ranking", methods=["POST"])
 def update_ranking():
     song_query = request.form.get("song", "")
     singer_query = request.form.get("singer", "")
+    filter_user = request.form.get("filter_user", "")
+    filter_type = request.form.get("filter_type", "")
     total_inserted = 0
     for user, cookies in USER_COOKIES.items():
         if not cookies.get("scr_cdm"):
@@ -358,8 +360,12 @@ def update_ranking():
             inserted = insert_scores_from_df(df_new)
             total_inserted += inserted
             print(f"[update] {user}: inserted {inserted} rows")
-    # 元のままのメッセージでもOKだが、ここでは何も変更しない
-    return redirect(request.referrer or url_for("ranking", song=song_query, singer=singer_query))
+    flash(f"ランキング更新完了: {total_inserted} 件追加", "info")
+    return redirect(request.referrer or url_for("ranking", song=song_query,
+                                                singer=singer_query,
+                                                filter_user=filter_user,
+                                                filter_type=filter_type))
+
 
 # ---- User History ----
 @app.route("/user/<username>", methods=["GET"])

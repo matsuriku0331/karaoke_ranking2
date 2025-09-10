@@ -27,22 +27,14 @@
     .pill.cyan{background:rgba(6,182,212,.10); border-color:rgba(6,182,212,.35); color:#67e8f9}
     .pill.gray{background:rgba(148,163,184,.08); border-color:rgba(148,163,184,.30); color:#cbd5e1}
 
-    /* 入力を常に見やすく（デスクトップでも16px、モバイルはさらに拡大） */
     input[type="text"], select { padding: 12px 14px; font-size: 16px; width:100%; }
     .name-link{ color:var(--text); text-decoration:none; }
     .name-link:hover{ text-decoration:underline; }
 
     .score{ font-weight:900; letter-spacing:.2px; text-shadow:0 0 12px rgba(34,197,94,.18); }
-
-    /* ★ このページの統計数字は四角背景を外す（外枠ピルは残す） */
-    .user-card .stats .score{
-      background:none; border:none; text-shadow:none; padding:0;
-    }
-
-    /* ★ 文字折返しを強化して縦伸び防止 */
+    .user-card .stats .score{ background:none; border:none; text-shadow:none; padding:0; }
     .song-title, .artist, td, th { word-break:break-word; overflow-wrap:break-word; }
 
-    /* ★ モバイル最適化：検索欄を1列にしてタップしやすく */
     @media (max-width: 768px) {
       .grid.cols-3{ grid-template-columns: 1fr; }
       input[type="text"], select { padding: 13px 15px; font-size: 16px; }
@@ -59,12 +51,13 @@
 {% block update_hidden %}
   <input type="hidden" name="song" value="{{ song_query }}">
   <input type="hidden" name="singer" value="{{ singer_query }}">
+  <input type="hidden" name="filter_user" value="{{ filter_user }}">
+  <input type="hidden" name="filter_type" value="{{ filter_type }}">
 {% endblock %}
 
 {% block content %}
   <div class="h1" style="display:flex; align-items:center; justify-content:space-between;">
     <span>曲別ランキング</span>
-    <!-- 🔙 元の位置に戻す -->
     <a href="{{ url_for('home') }}" class="btn secondary" style="font-size:14px; padding:6px 12px;">ホームに戻る</a>
   </div>
 
@@ -99,6 +92,7 @@
     </div>
   </div>
 
+  <!-- ★検索フォーム拡張 -->
   <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
     <div class="grid cols-3">
       <div>
@@ -110,8 +104,21 @@
         <input type="text" id="singer" name="singer" placeholder="例：三浦たくま" value="{{ singer_query }}">
       </div>
       <div>
-        <label>並び替え</label>
-        <input type="text" value="1位スコアの降順" readonly>
+        <label for="filter_user">ユーザー</label>
+        <select name="filter_user" id="filter_user">
+          <option value="">選択してください</option>
+          <option value="まつりく" {% if filter_user=='まつりく' %}selected{% endif %}>まつりく</option>
+          <option value="えす" {% if filter_user=='えす' %}selected{% endif %}>えす</option>
+          <option value="こんけあ" {% if filter_user=='こんけあ' %}selected{% endif %}>こんけあ</option>
+        </select>
+        <div style="margin-top:6px">
+          <label><input type="radio" name="filter_type" value="others2"
+                        {% if filter_type=='others2' %}checked{% endif %}> 他の2人が歌っている曲</label><br>
+          <label><input type="radio" name="filter_type" value="solo"
+                        {% if filter_type=='solo' %}checked{% endif %}> 誰か1人だけが歌っている曲</label><br>
+          <label><input type="radio" name="filter_type" value=""
+                        {% if not filter_type %}checked{% endif %}> 全て</label>
+        </div>
       </div>
     </div>
     <div class="row" style="margin-top:12px; justify-content:flex-end">
