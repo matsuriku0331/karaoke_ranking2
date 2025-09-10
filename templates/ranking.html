@@ -82,6 +82,7 @@
     </div>
   </div>
 
+  <!-- 🔎 検索フォーム -->
   <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
     <div class="grid cols-3">
       <div>
@@ -90,11 +91,21 @@
       </div>
       <div>
         <label for="singer">歌手名検索</label>
-        <input type="text" id="singer" name="singer" placeholder="例：三浦たくま" value="{{ singer_query }}">
+        <input type="text" id="singer" name="singer" placeholder="例：米津玄師" value="{{ singer_query }}">
       </div>
       <div>
-        <label>並び替え</label>
-        <input type="text" value="1位スコアの降順" readonly>
+        <label for="filter_user">ユーザー</label>
+        <select name="filter_user" id="filter_user">
+          <option value="">選択してください</option>
+          <option value="まつりく" {% if filter_user=='まつりく' %}selected{% endif %}>まつりく</option>
+          <option value="えす" {% if filter_user=='えす' %}selected{% endif %}>えす</option>
+          <option value="こんけあ" {% if filter_user=='こんけあ' %}selected{% endif %}>こんけあ</option>
+        </select>
+        <div style="margin-top:6px">
+          <label><input type="radio" name="filter_type" value="others2" {% if filter_type=='others2' %}checked{% endif %}> 他の2人が歌っている曲</label><br>
+          <label><input type="radio" name="filter_type" value="solo" {% if filter_type=='solo' %}checked{% endif %}> 誰か1人だけが歌っている曲</label><br>
+          <label><input type="radio" name="filter_type" value="" {% if not filter_type %}checked{% endif %}> 全て</label>
+        </div>
       </div>
     </div>
     <div class="row" style="margin-top:12px; justify-content:flex-end">
