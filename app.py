@@ -263,6 +263,7 @@ def ranking():
 
     df_all = df_from_db()
 
+    # --- フィルタ処理 ---
     if not df_all.empty and filter_user:
         if filter_type == "others2":
             song_users = df_all.groupby("曲名")["ユーザー"].unique()
@@ -276,14 +277,13 @@ def ranking():
             allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 95)]["曲名"].unique()
             df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "dere":
-            # 指定ユーザーの曲だけ抽出
+            # 指定ユーザーの曲の最高点を計算し、最高点が80未満の曲だけ残す
             user_df = df_all[df_all["ユーザー"] == filter_user]
-            # 曲ごとの最高点を計算
             max_scores = user_df.groupby("曲名")["スコア"].max()
-            # 最高点が 80 未満の曲だけ残す
             dere_songs = max_scores[max_scores < 80].index
             df_all = df_all[df_all["曲名"].isin(dere_songs)]
 
+    # --- 集計（ユーザーカード用） ---
     user_averages = {}
     first_place_counts = {}
     third_place_counts = {}
@@ -292,21 +292,27 @@ def ranking():
     user_dere_counts = {}
 
     if not df_all.empty:
+        # 平均スコア
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
+        # 総曲数
         user_total_records = df_all.groupby("ユーザー").size().to_dict()
+        # 95点以上曲数
         df_95 = df_all[df_all["スコア"] >= 95]
         for user, group in df_95.groupby("ユーザー"):
             user_95_counts[user] = group["曲名"].nunique()
-        df_dere = df_all[df_all["スコア"] < 80]
-        for user, group in df_dere.groupby("ユーザー"):
-            user_dere_counts[user] = group["曲名"].nunique()
+        # でれんでれん曲数（最高点が80未満の曲のみ）
+        for user, group in df_all.groupby("ユーザー"):
+            max_scores = group.groupby("曲名")["スコア"].max()
+            user_dere_counts[user] = (max_scores < 80).sum()
 
+    # --- 検索フィルタ ---
     filtered = df_all.copy()
     if song_query:
         filtered = filtered[filtered["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
     if singer_query:
         filtered = filtered[filtered["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
 
+    # --- 各曲の最高点を集計（曲別ランキング作成） ---
     best_rows = pd.DataFrame(columns=["曲名", "ユーザー", "歌手名", "スコア", "日付"])
     if not filtered.empty:
         ordered = filtered.sort_values(["スコア", "日付"], ascending=[False, True])
@@ -326,6 +332,7 @@ def ranking():
                 "records": top3,
                 "singer": g_sorted.iloc[0]["歌手名"]
             })
+            # 1位/3位カウント
             for idx, rec in enumerate(top3, start=1):
                 u = rec["ユーザー"]
                 if idx == 1:
@@ -335,20 +342,21 @@ def ranking():
 
         ranking_list.sort(key=lambda x: x["top_score"], reverse=True)
 
-    return render_template("ranking.html",
-                           ranking_list=ranking_list,
-                           result_count=len(ranking_list),
-                           user_averages=user_averages,
-                           first_place_counts=first_place_counts,
-                           third_place_counts=third_place_counts,
-                           user_total_records=user_total_records,
-                           user_95_counts=user_95_counts,
-                           user_dere_counts=user_dere_counts,
-                           song_query=song_query,
-                           singer_query=singer_query,
-                           filter_user=filter_user,
-                           filter_type=filter_type)
-
+    return render_template(
+        "ranking.html",
+        ranking_list=ranking_list,
+        result_count=len(ranking_list),
+        user_averages=user_averages,
+        first_place_counts=first_place_counts,
+        third_place_counts=third_place_counts,
+        user_total_records=user_total_records,
+        user_95_counts=user_95_counts,
+        user_dere_counts=user_dere_counts,
+        song_query=song_query,
+        singer_query=singer_query,
+        filter_user=filter_user,
+        filter_type=filter_type,
+    )
 @app.route("/update_ranking", methods=["POST"])
 def update_ranking():
     song_query = request.form.get("song", "")
