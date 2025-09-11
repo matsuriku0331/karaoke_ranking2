@@ -276,8 +276,8 @@ def ranking():
             allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 95)]["曲名"].unique()
             df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "dere":
-            allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] < 80)]["曲名"].unique()
-            df_all = df_all[df_all["曲名"].isin(allowed)]
+            dere_songs = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] < 80)]["曲名"].unique()
+           df_all = df_all[(df_all["ユーザー"] == filter_user) & (df_all["曲名"].isin(dere_songs))]
 
     user_averages = {}
     first_place_counts = {}
@@ -592,3 +592,5 @@ def admin_import():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
+    filter_type
