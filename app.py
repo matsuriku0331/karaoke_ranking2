@@ -12,14 +12,11 @@ from datetime import datetime
 # ---- Flask + DB setup ----
 app = Flask(__name__)
 
-# セッション＆管理
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
-ADMIN_PASS = os.environ.get("ADMIN_PASS", None)  # 管理者用共有パスワード
+ADMIN_PASS = os.environ.get("ADMIN_PASS", None)
 
-# アップロード上限（5MB）
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
-# Render の接続文字列（postgres:// → postgresql:// 置換）
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -33,11 +30,11 @@ db = SQLAlchemy(app)
 class Score(db.Model):
     __tablename__ = "scores"
     id = db.Column(db.Integer, primary_key=True)
-    song = db.Column(db.String(500), nullable=False)    # 曲名
-    singer = db.Column(db.String(300), nullable=True)   # 歌手名
-    user = db.Column(db.String(200), nullable=False)    # ユーザー名
-    score = db.Column(db.Float, nullable=False)         # スコア
-    date = db.Column(db.DateTime, nullable=False)       # 日付（日時）
+    song = db.Column(db.String(500), nullable=False)
+    singer = db.Column(db.String(300), nullable=True)
+    user = db.Column(db.String(200), nullable=False)
+    score = db.Column(db.Float, nullable=False)
+    date = db.Column(db.DateTime, nullable=False)
     __table_args__ = (UniqueConstraint('song', 'user', 'date', name='_song_user_date_uc'),)
 
     def to_record(self):
@@ -46,7 +43,6 @@ class Score(db.Model):
 with app.app_context():
     db.create_all()
 
-# ---- Jinja フィルタ ----
 @app.template_filter("fmtdate")
 def fmtdate(value, fmt="%Y-%m-%d"):
     if value is None:
@@ -60,13 +56,11 @@ def fmtdate(value, fmt="%Y-%m-%d"):
         dt = datetime.fromisoformat(str(value))
         return dt.strftime(fmt)
     except Exception:
-        s = str(value)
-        return s[:10]
+        return str(value)[:10]
 
 # ---- Config / constants ----
 AI_SCORE_URL = "https://www.clubdam.com/app/damtomo/scoring/GetScoringAiListXML.do"
 
-# 環境変数からクッキー値を読む（安全運用）
 USER_COOKIES = {
     "まつりく": {
         "dam-uid": os.environ.get("U1_DAM_UID", ""),
@@ -143,7 +137,6 @@ def insert_scores_from_df(df_new):
     df_new = df_new.copy()
     df_new["日付"] = pd.to_datetime(df_new["日付"], errors="coerce")
     inserted = 0
-
     session_db = db.session
     for _, r in df_new.iterrows():
         if pd.isna(r["日付"]) or pd.isna(r["スコア"]):
@@ -204,7 +197,6 @@ def admin_required(fn):
     return wrapper
 
 ALLOWED_CSV_EXTS = {"csv"}
-
 def _allowed_csv(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_CSV_EXTS
 
@@ -239,13 +231,10 @@ def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
     lower_map = {c.lower(): c for c in df.columns}
     target_cols = {}
     for std, opts in candidates.items():
-        hit = None
         for o in opts:
             if o.lower() in lower_map:
-                hit = lower_map[o.lower()]
+                target_cols[std] = lower_map[o.lower()]
                 break
-        if hit:
-            target_cols[std] = hit
 
     required = {"曲名", "ユーザー", "スコア", "日付"}
     if not required.issubset(set(target_cols.keys())):
@@ -260,7 +249,7 @@ def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
     out["日付"] = pd.to_datetime(df[target_cols["日付"]], errors="coerce")
     return out
 
-# ---- Public Routes ----
+# ---- Routes ----
 @app.route("/", methods=["GET"])
 def home():
     return render_template("home.html")
@@ -274,17 +263,20 @@ def ranking():
 
     df_all = df_from_db()
 
-    if not df_all.empty and filter_user and filter_type:
-        song_users = df_all.groupby("曲名")["ユーザー"].unique()
+    if not df_all.empty and filter_user:
         if filter_type == "others2":
-            allowed = song_users[song_users.apply(
-                lambda us: filter_user not in us and len(set(us)) == 2
-            )].index
+            song_users = df_all.groupby("曲名")["ユーザー"].unique()
+            allowed = song_users[song_users.apply(lambda us: filter_user not in us and len(set(us)) == 2)].index
             df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "solo":
-            allowed = song_users[song_users.apply(
-                lambda us: len(set(us)) == 1 and filter_user in us
-            )].index
+            song_users = df_all.groupby("曲名")["ユーザー"].unique()
+            allowed = song_users[song_users.apply(lambda us: len(set(us)) == 1 and filter_user in us)].index
+            df_all = df_all[df_all["曲名"].isin(allowed)]
+        elif filter_type == "95":
+            allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 95)]["曲名"].unique()
+            df_all = df_all[df_all["曲名"].isin(allowed)]
+        elif filter_type == "dere":
+            allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] < 80)]["曲名"].unique()
             df_all = df_all[df_all["曲名"].isin(allowed)]
 
     user_averages = {}
@@ -292,6 +284,7 @@ def ranking():
     third_place_counts = {}
     user_total_records = {}
     user_95_counts = {}
+    user_dere_counts = {}
 
     if not df_all.empty:
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
@@ -299,6 +292,9 @@ def ranking():
         df_95 = df_all[df_all["スコア"] >= 95]
         for user, group in df_95.groupby("ユーザー"):
             user_95_counts[user] = group["曲名"].nunique()
+        df_dere = df_all[df_all["スコア"] < 80]
+        for user, group in df_dere.groupby("ユーザー"):
+            user_dere_counts[user] = group["曲名"].nunique()
 
     filtered = df_all.copy()
     if song_query:
@@ -309,10 +305,7 @@ def ranking():
     best_rows = pd.DataFrame(columns=["曲名", "ユーザー", "歌手名", "スコア", "日付"])
     if not filtered.empty:
         ordered = filtered.sort_values(["スコア", "日付"], ascending=[False, True])
-        best_rows = (
-            ordered.groupby(["曲名", "ユーザー"], as_index=False)
-                   .first()[["曲名", "ユーザー", "歌手名", "スコア", "日付"]]
-        )
+        best_rows = ordered.groupby(["曲名", "ユーザー"], as_index=False).first()
 
     ranking_list = []
     first_place_counts = {}
@@ -322,10 +315,9 @@ def ranking():
             g_sorted = group.sort_values(["スコア", "日付"], ascending=[False, True])
             top3_df = g_sorted.head(3)
             top3 = top3_df.to_dict(orient="records")
-            top_score = float(g_sorted.iloc[0]["スコア"])
             ranking_list.append({
                 "song": song,
-                "top_score": top_score,
+                "top_score": float(g_sorted.iloc[0]["スコア"]),
                 "records": top3,
                 "singer": g_sorted.iloc[0]["歌手名"]
             })
@@ -338,20 +330,19 @@ def ranking():
 
         ranking_list.sort(key=lambda x: x["top_score"], reverse=True)
 
-    return render_template(
-        "ranking.html",
-        ranking_list=ranking_list,
-        result_count=len(ranking_list),
-        user_averages=user_averages,
-        first_place_counts=first_place_counts,
-        third_place_counts=third_place_counts,
-        user_total_records=user_total_records,
-        user_95_counts=user_95_counts,
-        song_query=song_query,
-        singer_query=singer_query,
-        filter_user=filter_user,
-        filter_type=filter_type,
-    )
+    return render_template("ranking.html",
+                           ranking_list=ranking_list,
+                           result_count=len(ranking_list),
+                           user_averages=user_averages,
+                           first_place_counts=first_place_counts,
+                           third_place_counts=third_place_counts,
+                           user_total_records=user_total_records,
+                           user_95_counts=user_95_counts,
+                           user_dere_counts=user_dere_counts,
+                           song_query=song_query,
+                           singer_query=singer_query,
+                           filter_user=filter_user,
+                           filter_type=filter_type)
 
 @app.route("/update_ranking", methods=["POST"])
 def update_ranking():
@@ -374,7 +365,6 @@ def update_ranking():
                                                 filter_user=filter_user,
                                                 filter_type=filter_type))
 
-# ---- User History ----
 @app.route("/user/<username>", methods=["GET"])
 def user_history(username):
     sort = request.args.get("sort", "recent")
@@ -412,6 +402,7 @@ def user_history(username):
                            username=username, records=records, total=total,
                            sort=sort, song_query=song_query, singer_query=singer_query,
                            per=per, page=page, total_pages=total_pages)
+
 @app.route("/user/<username>/thirds", methods=["GET"])
 def user_third_rank(username):
     df_all = df_from_db()
@@ -434,7 +425,6 @@ def user_third_rank(username):
     ranking_cards.sort(key=lambda x: x["records"][0]["スコア"] if x["records"] else 0, reverse=True)
     return render_template("user_third.html", username=username, ranking_cards=ranking_cards)
 
-# ---- All users history ----
 @app.route("/history/all", methods=["GET"])
 def all_history():
     sort = request.args.get("sort", "recent")
@@ -472,7 +462,6 @@ def all_history():
                            song_query=song_query, singer_query=singer_query,
                            per=per, page=page, total_pages=total_pages)
 
-# ---- Admin ----
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
@@ -561,7 +550,6 @@ def admin_delete():
         flash(f"削除でエラーが発生しました: {e}", "error")
     return redirect(url_for("admin"))
 
-# ✅ 追加機能: 「生音」を含む曲を一括削除
 @app.route("/admin/delete_namaoto", methods=["POST"])
 @admin_required
 def delete_namaoto():
@@ -574,7 +562,6 @@ def delete_namaoto():
         flash(f"削除中にエラーが発生しました: {e}", "error")
     return redirect(url_for("admin"))
 
-# ---- CSV Import ----
 @app.route("/admin/import", methods=["POST"])
 @admin_required
 def admin_import():
@@ -602,7 +589,6 @@ def admin_import():
 
     return redirect(url_for("admin"))
 
-# ---- 起動 ----
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)

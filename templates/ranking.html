@@ -72,7 +72,9 @@
           <div class="pill cyan">1位 <span class="score">{{ first_place_counts.get(uname, 0) }}</span></div>
           <a class="pill name-link" href="{{ url_for('user_third_rank', username=uname) }}">雑魚 <span class="score">{{ third_place_counts.get(uname, 0) }}</span></a>
           <div class="pill gray">曲数 <span class="score">{{ user_total_records.get(uname, 0) }}</span></div>
-          <div class="pill gold">９５点以上 <span class="score">{{ user_95_counts.get(uname, 0) }}</span></div>
+          <!-- クリック可能に変更 -->
+          <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='95') }}">９５点以上 <span class="score">{{ user_95_counts.get(uname, 0) }}</span></a>
+          <a class="pill name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='dere') }}">でれんでれん <span class="score">{{ user_dere_counts.get(uname, 0) }}</span></a>
         </div>
       </div>
     {% endfor %}
