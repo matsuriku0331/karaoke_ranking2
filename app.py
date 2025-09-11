@@ -282,7 +282,10 @@ def ranking():
             )].index
             df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "solo":
-            allowed = song_users[song_users.apply(lambda us: len(set(us)) == 1)].index
+            # ✅ 修正: 選択ユーザーだけが歌っている曲に限定
+            allowed = song_users[song_users.apply(
+                lambda us: len(set(us)) == 1 and filter_user in us
+            )].index
             df_all = df_all[df_all["曲名"].isin(allowed)]
 
     user_averages = {}
@@ -335,7 +338,7 @@ def ranking():
     return render_template(
         "ranking.html",
         ranking_list=ranking_list,
-        result_count=len(ranking_list),  # ★件数を追加
+        result_count=len(ranking_list),  # 件数表示
         user_averages=user_averages,
         first_place_counts=first_place_counts,
         third_place_counts=third_place_counts,
@@ -366,7 +369,6 @@ def update_ranking():
                                                 singer=singer_query,
                                                 filter_user=filter_user,
                                                 filter_type=filter_type))
-
 
 # ---- User History ----
 @app.route("/user/<username>", methods=["GET"])
@@ -556,6 +558,19 @@ def admin_delete():
         flash(f"削除でエラーが発生しました: {e}", "error")
     return redirect(url_for("admin"))
 
+# ✅ 追加機能: 「生音」を含む曲を一括削除
+@app.route("/admin/delete_namaoto", methods=["POST"])
+@admin_required
+def delete_namaoto():
+    try:
+        deleted_count = Score.query.filter(Score.song.contains("生音")).delete(synchronize_session=False)
+        db.session.commit()
+        flash(f"『生音』を含む曲データを {deleted_count} 件削除しました。", "info")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"削除中にエラーが発生しました: {e}", "error")
+    return redirect(url_for("admin"))
+
 # ---- CSV Import ----
 @app.route("/admin/import", methods=["POST"])
 @admin_required
@@ -572,10 +587,8 @@ def admin_import():
         df_raw = _read_csv_flex(file)
         df_norm = _normalize_csv_columns(df_raw)
         before = len(df_norm)
-        # 無効（NaT/NaN）を除外
         df_norm = df_norm.dropna(subset=["曲名", "ユーザー", "スコア", "日付"])
         dropped = before - len(df_norm)
-
         inserted = insert_scores_from_df(df_norm)
         msg = f"CSV取り込み完了: 受領 {before} 行 / 無効 {dropped} 行 / 追加 {inserted} 行"
         flash(msg, "info")
