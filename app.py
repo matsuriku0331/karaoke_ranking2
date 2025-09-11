@@ -203,17 +203,12 @@ def admin_required(fn):
         return redirect(url_for("admin_login", next=request.path))
     return wrapper
 
-# ---- CSV ユーティリティ ----
 ALLOWED_CSV_EXTS = {"csv"}
 
 def _allowed_csv(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_CSV_EXTS
 
 def _read_csv_flex(file_storage) -> pd.DataFrame:
-    """
-    エンコーディングを utf-8-sig → cp932 の順で試す。
-    余計な空白をtrim。空行は落とす。
-    """
     raw = file_storage.read()
     for enc in ("utf-8-sig", "cp932"):
         try:
@@ -225,7 +220,6 @@ def _read_csv_flex(file_storage) -> pd.DataFrame:
     if df is None:
         raise ValueError("CSVの読み込みに失敗しました（文字コード不明）。UTF-8 / Shift_JIS を試してください。")
 
-    # 列名・文字列のトリム
     df.columns = [str(c).strip() for c in df.columns]
     for col in df.columns:
         if df[col].dtype == object:
@@ -234,11 +228,6 @@ def _read_csv_flex(file_storage) -> pd.DataFrame:
     return df
 
 def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    いろいろな列名バリエーションを、アプリの標準
-    「曲名」「歌手名」「ユーザー」「スコア」「日付」に正規化する
-    """
-    # 候補名（小文字比較）
     candidates = {
         "曲名": {"曲名", "song", "title", "song_name", "songs"},
         "歌手名": {"歌手名", "artist", "singer", "artist_name"},
@@ -258,7 +247,6 @@ def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
         if hit:
             target_cols[std] = hit
 
-    # 必須：曲名, ユーザー, スコア, 日付（歌手名は任意）
     required = {"曲名", "ユーザー", "スコア", "日付"}
     if not required.issubset(set(target_cols.keys())):
         missing = required - set(target_cols.keys())
@@ -268,10 +256,7 @@ def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
     out["曲名"] = df[target_cols["曲名"]]
     out["歌手名"] = df[target_cols["歌手名"]] if "歌手名" in target_cols else None
     out["ユーザー"] = df[target_cols["ユーザー"]]
-    # スコアをfloat化
     out["スコア"] = pd.to_numeric(df[target_cols["スコア"]], errors="coerce")
-
-    # 日付：柔軟にパース
     out["日付"] = pd.to_datetime(df[target_cols["日付"]], errors="coerce")
     return out
 
@@ -286,12 +271,9 @@ def ranking():
     singer_query = request.args.get("singer", "")
     filter_user = request.args.get("filter_user", "")
     filter_type = request.args.get("filter_type", "")
-    # ★ 追加：ユーザーカードから来るスコア種別フィルタ
-    filter_score_type = request.args.get("filter_score_type", "")  # "95plus" | "under80" | ""
 
     df_all = df_from_db()
 
-    # ---- ユーザー組合せフィルタ（ほか2人 / 選択ユーザーだけ）----
     if not df_all.empty and filter_user and filter_type:
         song_users = df_all.groupby("曲名")["ユーザー"].unique()
         if filter_type == "others2":
@@ -300,42 +282,30 @@ def ranking():
             )].index
             df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "solo":
-            # 選択ユーザーだけが歌っている曲に限定
             allowed = song_users[song_users.apply(
                 lambda us: len(set(us)) == 1 and filter_user in us
             )].index
             df_all = df_all[df_all["曲名"].isin(allowed)]
 
-    # ---- ユーザーカードの 95点以上 / 80点未満 絞り込み ----
-    if not df_all.empty and filter_user and filter_score_type:
-        if filter_score_type == "95plus":
-            df_all = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 95)]
-        elif filter_score_type == "under80":
-            df_all = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] < 80)]
-
-    # ---- ユーザー集計（平均 / 曲数 / 95+曲種数 / 80未満曲種数）----
     user_averages = {}
-    user_total_records = {}
-    user_95plus_counts = {}
-    user_below80_counts = {}
     first_place_counts = {}
     third_place_counts = {}
+    user_total_records = {}
+    user_95_counts = {}
 
     if not df_all.empty:
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
         user_total_records = df_all.groupby("ユーザー").size().to_dict()
-        # 曲の“種類数”でカウント（nunique）
-        user_95plus_counts = df_all[df_all["スコア"] >= 95].groupby("ユーザー")["曲名"].nunique().to_dict()
-        user_below80_counts = df_all[df_all["スコア"] < 80].groupby("ユーザー")["曲名"].nunique().to_dict()
+        df_95 = df_all[df_all["スコア"] >= 95]
+        for user, group in df_95.groupby("ユーザー"):
+            user_95_counts[user] = group["曲名"].nunique()
 
-    # ---- テキスト検索（曲名 / 歌手名）----
     filtered = df_all.copy()
     if song_query:
         filtered = filtered[filtered["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
     if singer_query:
         filtered = filtered[filtered["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
 
-    # ---- 曲別 Top3（人被り無し）----
     best_rows = pd.DataFrame(columns=["曲名", "ユーザー", "歌手名", "スコア", "日付"])
     if not filtered.empty:
         ordered = filtered.sort_values(["スコア", "日付"], ascending=[False, True])
@@ -371,29 +341,24 @@ def ranking():
     return render_template(
         "ranking.html",
         ranking_list=ranking_list,
-        result_count=len(ranking_list),  # 件数表示
+        result_count=len(ranking_list),
         user_averages=user_averages,
         first_place_counts=first_place_counts,
         third_place_counts=third_place_counts,
         user_total_records=user_total_records,
-        user_95plus_counts=user_95plus_counts,
-        user_below80_counts=user_below80_counts,
+        user_95_counts=user_95_counts,
         song_query=song_query,
         singer_query=singer_query,
         filter_user=filter_user,
         filter_type=filter_type,
-        filter_score_type=filter_score_type,
     )
 
 @app.route("/update_ranking", methods=["POST"])
 def update_ranking():
-    # hiddenから受け取り（referrerが無い時のフォールバックにも使用）
     song_query = request.form.get("song", "")
     singer_query = request.form.get("singer", "")
     filter_user = request.form.get("filter_user", "")
     filter_type = request.form.get("filter_type", "")
-    filter_score_type = request.form.get("filter_score_type", "")
-
     total_inserted = 0
     for user, cookies in USER_COOKIES.items():
         if not cookies.get("scr_cdm"):
@@ -403,18 +368,11 @@ def update_ranking():
             inserted = insert_scores_from_df(df_new)
             total_inserted += inserted
             print(f"[update] {user}: inserted {inserted} rows")
-
     flash(f"ランキング更新完了: {total_inserted} 件追加", "info")
-
-    # 直前ページへ戻る（無ければ ranking へ、かつ検索条件を引き継ぎ）
-    return redirect(
-        request.referrer or url_for("ranking",
-                                    song=song_query,
-                                    singer=singer_query,
-                                    filter_user=filter_user,
-                                    filter_type=filter_type,
-                                    filter_score_type=filter_score_type)
-    )
+    return redirect(request.referrer or url_for("ranking", song=song_query,
+                                                singer=singer_query,
+                                                filter_user=filter_user,
+                                                filter_type=filter_type))
 
 # ---- User History ----
 @app.route("/user/<username>", methods=["GET"])
@@ -454,7 +412,6 @@ def user_history(username):
                            username=username, records=records, total=total,
                            sort=sort, song_query=song_query, singer_query=singer_query,
                            per=per, page=page, total_pages=total_pages)
-
 @app.route("/user/<username>/thirds", methods=["GET"])
 def user_third_rank(username):
     df_all = df_from_db()
@@ -633,10 +590,8 @@ def admin_import():
         df_raw = _read_csv_flex(file)
         df_norm = _normalize_csv_columns(df_raw)
         before = len(df_norm)
-        # 無効（NaT/NaN）を除外
         df_norm = df_norm.dropna(subset=["曲名", "ユーザー", "スコア", "日付"])
         dropped = before - len(df_norm)
-
         inserted = insert_scores_from_df(df_norm)
         msg = f"CSV取り込み完了: 受領 {before} 行 / 無効 {dropped} 行 / 追加 {inserted} 行"
         flash(msg, "info")
