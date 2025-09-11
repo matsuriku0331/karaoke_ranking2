@@ -282,7 +282,6 @@ def ranking():
             )].index
             df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "solo":
-            # ✅ 修正: 選択ユーザーだけが歌っている曲に限定
             allowed = song_users[song_users.apply(
                 lambda us: len(set(us)) == 1 and filter_user in us
             )].index
@@ -292,10 +291,14 @@ def ranking():
     first_place_counts = {}
     third_place_counts = {}
     user_total_records = {}
+    user_95_counts = {}
 
     if not df_all.empty:
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
         user_total_records = df_all.groupby("ユーザー").size().to_dict()
+        df_95 = df_all[df_all["スコア"] >= 95]
+        for user, group in df_95.groupby("ユーザー"):
+            user_95_counts[user] = group["曲名"].nunique()
 
     filtered = df_all.copy()
     if song_query:
@@ -338,11 +341,12 @@ def ranking():
     return render_template(
         "ranking.html",
         ranking_list=ranking_list,
-        result_count=len(ranking_list),  # 件数表示
+        result_count=len(ranking_list),
         user_averages=user_averages,
         first_place_counts=first_place_counts,
         third_place_counts=third_place_counts,
         user_total_records=user_total_records,
+        user_95_counts=user_95_counts,
         song_query=song_query,
         singer_query=singer_query,
         filter_user=filter_user,
@@ -408,7 +412,6 @@ def user_history(username):
                            username=username, records=records, total=total,
                            sort=sort, song_query=song_query, singer_query=singer_query,
                            per=per, page=page, total_pages=total_pages)
-
 @app.route("/user/<username>/thirds", methods=["GET"])
 def user_third_rank(username):
     df_all = df_from_db()

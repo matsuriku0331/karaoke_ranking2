@@ -6,10 +6,12 @@
     .table-wrap{overflow-x:auto}
     .col-date{min-width: 140px;}
     @media (max-width:720px){ .col-date{min-width: 160px;} }
+
     .user-cards{ display:grid; gap:12px; grid-template-columns: repeat(4, 1fr); margin-bottom:16px; }
     @media (max-width:1120px){ .user-cards{grid-template-columns: 1fr 1fr 1fr} }
     @media (max-width:920px){ .user-cards{grid-template-columns: 1fr 1fr} }
     @media (max-width:640px){ .user-cards{grid-template-columns: 1fr} }
+
     .user-card .name{ display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px; margin-bottom:6px; min-width:0; }
     .user-card .name .dot{ width:10px; height:10px; border-radius:999px; box-shadow:0 0 16px rgba(34,197,94,.35); flex-shrink:0; }
     .user-card .stats{ display:flex; gap:8px; flex-wrap:wrap; }
@@ -17,12 +19,16 @@
     .pill.acc{background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.35); color:#86efac}
     .pill.cyan{background:rgba(6,182,212,.10); border-color:rgba(6,182,212,.35); color:#67e8f9}
     .pill.gray{background:rgba(148,163,184,.08); border-color:rgba(148,163,184,.30); color:#cbd5e1}
+    .pill.gold{background:rgba(255,215,0,.08); border-color:rgba(255,215,0,.3); color:#fde047}
+
     input[type="text"], select { padding: 12px 14px; font-size: 16px; width:100%; }
     .name-link{ color:var(--text); text-decoration:none; }
     .name-link:hover{ text-decoration:underline; }
+
     .score{ font-weight:900; letter-spacing:.2px; text-shadow:0 0 12px rgba(34,197,94,.18); }
     .user-card .stats .score{ background:none; border:none; text-shadow:none; padding:0; }
     .song-title, .artist, td, th { word-break:break-word; overflow-wrap:break-word; }
+
     @media (max-width: 768px) {
       .grid.cols-3{ grid-template-columns: 1fr; }
       input[type="text"], select { padding: 13px 15px; font-size: 16px; }
@@ -49,7 +55,6 @@
     <a href="{{ url_for('home') }}" class="btn secondary" style="font-size:14px; padding:6px 12px;">ホームに戻る</a>
   </div>
 
-
   {% set users_fixed = ['まつりく','えす','こんけあ'] %}
   <div class="user-cards">
     {% for uname in users_fixed %}
@@ -64,8 +69,10 @@
         </div>
         <div class="stats">
           <div class="pill acc">平均 <span class="score">{{ '%.3f'|format(user_averages.get(uname, 0)) }}</span></div>
+          <div class="pill cyan">1位 <span class="score">{{ first_place_counts.get(uname, 0) }}</span></div>
           <a class="pill name-link" href="{{ url_for('user_third_rank', username=uname) }}">雑魚 <span class="score">{{ third_place_counts.get(uname, 0) }}</span></a>
           <div class="pill gray">曲数 <span class="score">{{ user_total_records.get(uname, 0) }}</span></div>
+          <div class="pill gold">９５点以上 <span class="score">{{ user_95_counts.get(uname, 0) }}</span></div>
         </div>
       </div>
     {% endfor %}
@@ -79,7 +86,9 @@
       </div>
     </div>
   </div>
+
   <div class="muted" style="margin-bottom:10px">検索結果: {{ result_count }} 件</div>
+
   <!-- 🔎 検索フォーム -->
   <form class="card" method="get" action="{{ url_for('ranking') }}" style="margin-bottom:16px">
     <div class="grid cols-3">
