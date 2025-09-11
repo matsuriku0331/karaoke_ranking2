@@ -276,8 +276,13 @@ def ranking():
             allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 95)]["曲名"].unique()
             df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "dere":
-            dere_songs = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] < 80)]["曲名"].unique()
-            df_all = df_all[(df_all["ユーザー"] == filter_user) & (df_all["曲名"].isin(dere_songs))]
+            # 指定ユーザーの曲だけ抽出
+            user_df = df_all[df_all["ユーザー"] == filter_user]
+            # 曲ごとの最高点を計算
+            max_scores = user_df.groupby("曲名")["スコア"].max()
+            # 最高点が 80 未満の曲だけ残す
+            dere_songs = max_scores[max_scores < 80].index
+            df_all = df_all[df_all["曲名"].isin(dere_songs)]
 
     user_averages = {}
     first_place_counts = {}
