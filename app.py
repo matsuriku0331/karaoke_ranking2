@@ -277,7 +277,7 @@ def ranking():
             df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "dere":
             dere_songs = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] < 80)]["曲名"].unique()
-           df_all = df_all[(df_all["ユーザー"] == filter_user) & (df_all["曲名"].isin(dere_songs))]
+            df_all = df_all[(df_all["ユーザー"] == filter_user) & (df_all["曲名"].isin(dere_songs))]
 
     user_averages = {}
     first_place_counts = {}
