@@ -89,7 +89,7 @@ USER_COOKIES = {
 }
 
 # ---- Helpers ----
-def fetch_damtomo_ai_scores(username, cookies, max_pages=30):
+def fetch_damtomo_ai_scores(username, cookies, max_pages=20):
     all_scores = []
     for page in range(1, max_pages + 1):
         params = {"cdmCardNo": cookies.get("scr_cdm", ""), "pageNo": page, "detailFlg": 0}
