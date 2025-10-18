@@ -8,10 +8,10 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* 初期表示で「曲名+スコア」を収めるために曲名を短めに、スコアは固定幅 */
+ 
     table{
       width:100%;
-      min-width: 660px;              /* 220(曲名)+120(スコア)+140(ユーザー)+180(日付)=660 */
+      min-width: 660px;             
       border-collapse:separate;
       border-spacing:0 8px;
       table-layout:fixed;
@@ -24,18 +24,18 @@
       text-overflow:ellipsis;
     }
 
-    /* 列幅（歌手名は無し） */
-    .col-title { min-width:200px; text-align:left; }  /* ★短くしてスコアが見えるように */
-    .col-score { min-width:120px; text-align:right; } /* スコアは常に視認性確保 */
+    
+    .col-title { min-width:200px; text-align:left; }  
+    .col-score { min-width:120px; text-align:right; } 
     .col-user  { min-width:140px; text-align:left; }
     .col-date  { min-width:180px; text-align:left; }
 
-    /* 曲名1行省略・スコアは必ず1行 */
+    
     .truncate{ display:block; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .nowrap{ white-space:nowrap; }
     .score.compact{ padding:2px 6px; }
 
-    /* ユーザーチップ & 行の色バー（従来通り） */
+    
     .uname-chip{
       display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700;
       border:1px solid var(--border);
@@ -57,7 +57,7 @@
     .pager{ display:flex; gap:8px; justify-content:flex-end; align-items:center; margin-top:12px; flex-wrap:wrap; }
     .pager .info{ color:var(--muted); font-size:12px; }
 
-    /* モバイルでも列は潰さず、横スクロールで対応（初期で曲名+スコアは見える） */
+    
     @media (max-width: 640px){
       thead th, tbody td { padding:8px 10px; font-size:14px; }
     }
