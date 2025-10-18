@@ -8,10 +8,10 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* 曲名を短めにして初期表示でスコアが見えるように */
+    
     table{
       width:100%;
-      min-width: 760px;              /* 220(曲名)+120(スコア)+220(歌手名)+200(日付)=760 */
+      min-width: 760px;        
       border-collapse:separate;
       border-spacing:0 8px;
       table-layout:fixed;
@@ -24,7 +24,7 @@
       text-overflow:ellipsis;
     }
 
-    .col-title { min-width:180px; text-align:left; }  /* ★短く */
+    .col-title { min-width:180px; text-align:left; }  
     .col-score { min-width:120px; text-align:right; }
     .col-singer{ min-width:220px; text-align:left; }
     .col-date  { min-width:200px; text-align:left; }
@@ -33,7 +33,7 @@
     .nowrap{ white-space:nowrap; }
     .score.compact{ padding:2px 6px; }
 
-    /* 検索・ページネーションは据え置き */
+
     .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
     .controls .field{min-width:240px; flex:1}
     label{font-size:12px}
@@ -62,11 +62,11 @@
     <div class="controls">
       <div class="field">
         <label>曲名検索</label>
-        <input type="text" name="song" value="{{ song_query }}" placeholder="例：Paipan">
+        <input type="text" name="song" value="{{ song_query }}" placeholder="例：pan">
       </div>
       <div class="field">
         <label>歌手名検索</label>
-        <input type="text" name="singer" value="{{ singer_query }}" placeholder="例：Pocochin">
+        <input type="text" name="singer" value="{{ singer_query }}" placeholder="例：Poco">
       </div>
       <div class="field" style="max-width:220px">
         <label>並び替え</label>
