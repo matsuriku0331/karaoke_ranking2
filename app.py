@@ -14,6 +14,9 @@ app = Flask(__name__)
 
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", None)
+#henkou
+RANKING_PASS = os.environ.get("RANKING_PASS")
+
 
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
@@ -250,12 +253,30 @@ def _normalize_csv_columns(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 # ---- Routes ----
+@app.route("/ranking/login", methods=["GET", "POST"])
+def ranking_login():
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        if not RANKING_PASS:
+            flash("環境変数 RANKING_PASS が未設定です。", "error")
+        elif pw == RANKING_PASS:
+            session["ranking_access"] = True
+            next_url = request.args.get("next") or url_for("ranking")
+            return redirect(next_url)
+        else:
+            flash("パスワードが違います。", "error")
+    return render_template("ranking_login.html")
+
 @app.route("/", methods=["GET"])
 def home():
     return render_template("home.html")
 
 @app.route("/ranking", methods=["GET"])
 def ranking():
+
+    if not session.get("ranking_access"):
+       return redirect(url_for("ranking_login"))
+
     song_query = request.args.get("song", "")
     singer_query = request.args.get("singer", "")
     filter_user = request.args.get("filter_user", "")

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}ランキング閲覧パスワード | 根性カラオキ{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:480px;margin:0 auto">
+  <div class="h1">ランキング閲覧パスワード</div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="muted" style="margin-bottom:8px">
+        {% for cat, msg in messages %}
+          <div>{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post">
+    <label for="password">パスワード</label>
+    <input type="password" id="password" name="password" placeholder="閲覧パスワード">
+    <div class="row" style="margin-top:12px; justify-content:flex-end">
+      <button class="btn" type="submit">ログイン</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
