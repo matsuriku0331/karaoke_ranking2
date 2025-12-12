@@ -297,6 +297,24 @@ def ranking():
         elif filter_type == "95":
             allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 95)]["曲名"].unique()
             df_all = df_all[df_all["曲名"].isin(allowed)]
+        elif filter_type == "100":
+            allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] == 100)]["曲名"].unique()
+            df_all = df_all[df_all["曲名"].isin(allowed)]
+        elif filter_type == "99":
+            allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 99)]["曲名"].unique()
+            df_all = df_all[df_all["曲名"].isin(allowed)]
+        elif filter_type == "98":
+            allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 98)]["曲名"].unique()
+            df_all = df_all[df_all["曲名"].isin(allowed)]
+        elif filter_type == "97":
+            allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] == 97)]["曲名"].unique()
+            df_all = df_all[df_all["曲名"].isin(allowed)]
+        elif filter_type == "96":
+            allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 96)]["曲名"].unique()
+            df_all = df_all[df_all["曲名"].isin(allowed)]
+        elif filter_type == "90":
+            allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 90)]["曲名"].unique()
+            df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "dere":
             # 指定ユーザーの曲の最高点を計算し、最高点が80未満の曲だけ残す
             user_df = df_all[df_all["ユーザー"] == filter_user]
