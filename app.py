@@ -325,7 +325,41 @@ def ranking():
         for user, group in df_all.groupby("ユーザー"):
             max_scores = group.groupby("曲名")["スコア"].max()
             user_dere_counts[user] = (max_scores < 80).sum()
+        # 100点以上曲数
+        df_100 = df_all[df_all["スコア"] == 100]
+        user_100_counts = {}
+        for user, group in df_100.groupby("ユーザー"):
+            user_100_counts[user] = group["曲名"].nunique()
 
+        # 99点以上曲数
+        df_99 = df_all[df_all["スコア"] >= 99]
+        user_99_counts = {}
+        for user, group in df_99.groupby("ユーザー"):
+            user_99_counts[user] = group["曲名"].nunique()
+
+        # 98点以上曲数
+        df_98 = df_all[df_all["スコア"] >= 98]
+        user_98_counts = {}
+        for user, group in df_98.groupby("ユーザー"):
+            user_98_counts[user] = group["曲名"].nunique()
+
+        # 97点以上曲数
+        df_97 = df_all[df_all["スコア"] >= 97]
+        user_97_counts = {}
+        for user, group in df_97.groupby("ユーザー"):
+            user_97_counts[user] = group["曲名"].nunique()
+
+        # 96点以上曲数
+        df_96 = df_all[df_all["スコア"] >= 96]
+        user_96_counts = {}
+        for user, group in df_96.groupby("ユーザー"):
+            user_96_counts[user] = group["曲名"].nunique()
+
+        # 90点以上曲数
+        df_90 = df_all[df_all["スコア"] >= 90]
+        user_90_counts = {}
+        for user, group in df_90.groupby("ユーザー"):
+            user_90_counts[user] = group["曲名"].nunique()
     # --- 検索フィルタ ---
     filtered = df_all.copy()
     if song_query:
@@ -372,6 +406,12 @@ def ranking():
         third_place_counts=third_place_counts,
         user_total_records=user_total_records,
         user_95_counts=user_95_counts,
+        user_100_counts=user_100_counts,
+        user_99_counts=user_99_counts,
+        user_98_counts=user_98_counts,
+        user_97_counts=user_97_counts,
+        user_96_counts=user_96_counts,
+        user_90_counts=user_90_counts,
         user_dere_counts=user_dere_counts,
         song_query=song_query,
         singer_query=singer_query,

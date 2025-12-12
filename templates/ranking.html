@@ -73,7 +73,24 @@
           <a class="pill name-link" href="{{ url_for('user_third_rank', username=uname) }}">3位 <span class="score">{{ third_place_counts.get(uname, 0) }}</span></a>
           <div class="pill gray">曲数 <span class="score">{{ user_total_records.get(uname, 0) }}</span></div>
           <!-- クリック可能に変更 -->
+          
+          <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='100') }}">１００点 <span class="score">{{ user_100_counts.get(uname, 0) }}</span></a>
+          <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='99') }}">
+              ９９点以上 <span class="score">{{ user_99_counts.get(uname, 0) }}</span>
+          </a>
+          <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='98') }}">
+              ９８点以上 <span class="score">{{ user_98_counts.get(uname, 0) }}</span>
+          </a>
+          <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='97') }}">
+              ９７点以上 <span class="score">{{ user_97_counts.get(uname, 0) }}</span>
+          </a>
+          <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='96') }}">
+              ９６点以上 <span class="score">{{ user_96_counts.get(uname, 0) }}</span>
+          </a>
           <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='95') }}">９５点以上 <span class="score">{{ user_95_counts.get(uname, 0) }}</span></a>
+          <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='90') }}">
+              ９０点以上 <span class="score">{{ user_90_counts.get(uname, 0) }}</span>
+          </a>
           <a class="pill name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='dere') }}">でれんでれん <span class="score">{{ user_dere_counts.get(uname, 0) }}</span></a>
         </div>
       </div>
