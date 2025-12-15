@@ -437,7 +437,7 @@ def ranking():
         user_98_counts=user_98_counts,
         user_97_counts=user_97_counts,
         user_96_counts=user_96_counts,
-        user_93_counts=user_96_counts,
+        user_93_counts=user_93_counts,
         user_90_counts=user_90_counts,
         user_dere_counts=user_dere_counts,
         song_query=song_query,
