@@ -88,6 +88,9 @@
               ９６点以上 <span class="score">{{ user_96_counts.get(uname, 0) }}</span>
           </a>
           <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='95') }}">９５点以上 <span class="score">{{ user_95_counts.get(uname, 0) }}</span></a>
+          <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='93') }}">
+              ９３点以上 <span class="score">{{ user_93_counts.get(uname, 0) }}</span>
+          </a>
           <a class="pill gold name-link" href="{{ url_for('ranking', filter_user=uname, filter_type='90') }}">
               ９０点以上 <span class="score">{{ user_90_counts.get(uname, 0) }}</span>
           </a>
