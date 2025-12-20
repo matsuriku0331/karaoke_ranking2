@@ -273,6 +273,7 @@ def home():
 
 @app.route("/ranking", methods=["GET"])
 def ranking():
+    user_100_counts = []
 
     if not session.get("ranking_access"):
        return redirect(url_for("ranking_login"))
