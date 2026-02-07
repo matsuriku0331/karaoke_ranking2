@@ -14,7 +14,9 @@ app = Flask(__name__)
 
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", None)
+#henkou
 RANKING_PASS = os.environ.get("RANKING_PASS")
+
 
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
@@ -62,28 +64,38 @@ def fmtdate(value, fmt="%Y-%m-%d"):
 # ---- Config / constants ----
 AI_SCORE_URL = "https://www.clubdam.com/app/damtomo/scoring/GetScoringAiListXML.do"
 
-# 【変更箇所】環境変数を SCR_DT のみに集約
-USER_SCR_DTS = {
-    "まつりく": os.environ.get("U1_SCR_DT", ""),
-    "えす":     os.environ.get("U2_SCR_DT", ""),
-    "こんけあ": os.environ.get("U3_SCR_DT", "")
+USER_COOKIES = {
+    "まつりく": {
+        "dam-uid": os.environ.get("U1_DAM_UID", ""),
+        "scr_cdm": os.environ.get("U1_SCR_CDM", ""),
+        "scr_dt":  os.environ.get("U1_SCR_DT",  ""),
+        "webmember": "1",
+        "wm_ac": os.environ.get("U1_WM_AC", ""),
+        "wm_dm": os.environ.get("U1_WM_DM", "")
+    },
+    "えす": {
+        "dam-uid": os.environ.get("U2_DAM_UID", ""),
+        "scr_cdm": os.environ.get("U2_SCR_CDM", ""),
+        "scr_dt":  os.environ.get("U2_SCR_DT",  ""),
+        "webmember": "1",
+        "wm_ac": os.environ.get("U2_WM_AC", ""),
+        "wm_dm": os.environ.get("U2_WM_DM", "")
+    },
+    "こんけあ": {
+        "dam-uid": os.environ.get("U3_DAM_UID", ""),
+        "scr_cdm": os.environ.get("U3_SCR_CDM", ""),
+        "scr_dt":  os.environ.get("U3_SCR_DT",  ""),
+        "webmember": "1",
+        "wm_ac": os.environ.get("U3_WM_AC", ""),
+        "wm_dm": os.environ.get("U3_WM_DM", "")
+    }
 }
 
 # ---- Helpers ----
-# 【変更箇所】引数を cookies から scr_dt に変更
-def fetch_damtomo_ai_scores(username, scr_dt, max_pages=40):
+def fetch_damtomo_ai_scores(username, cookies, max_pages=40):
     all_scores = []
-    
-    # 【変更箇所】最小構成のCookieセット
-    cookies = {
-        "scr_dt": scr_dt,
-        "webmember": "1"
-    }
-
     for page in range(1, max_pages + 1):
-        # 【変更箇所】cdmCardNo に SCR_DT の値をそのまま適用
-        params = {"cdmCardNo": scr_dt, "pageNo": page, "detailFlg": 0}
-        
+        params = {"cdmCardNo": cookies.get("scr_cdm", ""), "pageNo": page, "detailFlg": 0}
         if not params["cdmCardNo"]:
             break
         try:
@@ -308,11 +320,13 @@ def ranking():
             allowed = df_all[(df_all["ユーザー"] == filter_user) & (df_all["スコア"] >= 90)]["曲名"].unique()
             df_all = df_all[df_all["曲名"].isin(allowed)]
         elif filter_type == "dere":
+            # 指定ユーザーの曲の最高点を計算し、最高点が80未満の曲だけ残す
             user_df = df_all[df_all["ユーザー"] == filter_user]
             max_scores = user_df.groupby("曲名")["スコア"].max()
             dere_songs = max_scores[max_scores < 80].index
             df_all = df_all[df_all["曲名"].isin(dere_songs)]
 
+    # --- 集計（ユーザーカード用） ---
     user_averages = {}
     first_place_counts = {}
     third_place_counts = {}
@@ -321,49 +335,66 @@ def ranking():
     user_dere_counts = {}
 
     if not df_all.empty:
+        # 平均スコア
         user_averages = df_all.groupby("ユーザー")["スコア"].mean().round(2).to_dict()
+        # 総曲数
         user_total_records = df_all.groupby("ユーザー").size().to_dict()
+        # 95点以上曲数
         df_95 = df_all[df_all["スコア"] >= 95]
         for user, group in df_95.groupby("ユーザー"):
             user_95_counts[user] = group["曲名"].nunique()
+        # でれんでれん曲数（最高点が80未満の曲のみ）
         for user, group in df_all.groupby("ユーザー"):
             max_scores = group.groupby("曲名")["スコア"].max()
             user_dere_counts[user] = (max_scores < 80).sum()
+        # 100点以上曲数
         df_100 = df_all[df_all["スコア"] == 100]
         user_100_counts = {}
         for user, group in df_100.groupby("ユーザー"):
             user_100_counts[user] = group["曲名"].nunique()
+
+        # 99点以上曲数
         df_99 = df_all[df_all["スコア"] >= 99]
         user_99_counts = {}
         for user, group in df_99.groupby("ユーザー"):
             user_99_counts[user] = group["曲名"].nunique()
+
+        # 98点以上曲数
         df_98 = df_all[df_all["スコア"] >= 98]
         user_98_counts = {}
         for user, group in df_98.groupby("ユーザー"):
             user_98_counts[user] = group["曲名"].nunique()
+
+        # 97点以上曲数
         df_97 = df_all[df_all["スコア"] >= 97]
         user_97_counts = {}
         for user, group in df_97.groupby("ユーザー"):
             user_97_counts[user] = group["曲名"].nunique()
+
+        # 96点以上曲数
         df_96 = df_all[df_all["スコア"] >= 96]
         user_96_counts = {}
         for user, group in df_96.groupby("ユーザー"):
             user_96_counts[user] = group["曲名"].nunique()
+        # 93点以上曲数
         df_93 = df_all[df_all["スコア"] >= 93]
         user_93_counts = {}
         for user, group in df_93.groupby("ユーザー"):
             user_93_counts[user] = group["曲名"].nunique()
+
+        # 90点以上曲数
         df_90 = df_all[df_all["スコア"] >= 90]
         user_90_counts = {}
         for user, group in df_90.groupby("ユーザー"):
             user_90_counts[user] = group["曲名"].nunique()
-
+    # --- 検索フィルタ ---
     filtered = df_all.copy()
     if song_query:
         filtered = filtered[filtered["曲名"].fillna("").str.contains(song_query, case=False, na=False)]
     if singer_query:
         filtered = filtered[filtered["歌手名"].fillna("").str.contains(singer_query, case=False, na=False)]
 
+    # --- 各曲の最高点を集計（曲別ランキング作成） ---
     best_rows = pd.DataFrame(columns=["曲名", "ユーザー", "歌手名", "スコア", "日付"])
     if not filtered.empty:
         ordered = filtered.sort_values(["スコア", "日付"], ascending=[False, True])
@@ -383,12 +414,14 @@ def ranking():
                 "records": top3,
                 "singer": g_sorted.iloc[0]["歌手名"]
             })
+            # 1位/3位カウント
             for idx, rec in enumerate(top3, start=1):
                 u = rec["ユーザー"]
                 if idx == 1:
                     first_place_counts[u] = first_place_counts.get(u, 0) + 1
                 elif idx == 3:
                     third_place_counts[u] = third_place_counts.get(u, 0) + 1
+
         ranking_list.sort(key=lambda x: x["top_score"], reverse=True)
 
     return render_template(
@@ -413,7 +446,6 @@ def ranking():
         filter_user=filter_user,
         filter_type=filter_type,
     )
-
 @app.route("/update_ranking", methods=["POST"])
 def update_ranking():
     song_query = request.form.get("song", "")
@@ -421,11 +453,10 @@ def update_ranking():
     filter_user = request.form.get("filter_user", "")
     filter_type = request.form.get("filter_type", "")
     total_inserted = 0
-    # 【変更箇所】USER_SCR_DTS をループして、SCR_DT ひとつで更新を行う
-    for user, scr_dt in USER_SCR_DTS.items():
-        if not scr_dt:
+    for user, cookies in USER_COOKIES.items():
+        if not cookies.get("scr_cdm"):
             continue
-        df_new = fetch_damtomo_ai_scores(user, scr_dt)
+        df_new = fetch_damtomo_ai_scores(user, cookies)
         if not df_new.empty:
             inserted = insert_scores_from_df(df_new)
             total_inserted += inserted
@@ -663,3 +694,4 @@ def admin_import():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
